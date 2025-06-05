@@ -1,6 +1,10 @@
 #![allow(unused)]
 
+mod client;
 mod manifest;
+
+pub use client::output_directories;
+pub use manifest::get_client_jar_as_bytes;
 
 use camino::*;
 use image::{
@@ -12,8 +16,12 @@ use std::collections::HashMap;
 use std::fs;
 use walkdir::*;
 
+pub const WORKING_DIR: &str = ".wool";
+/// Where it all begins.
 const MANIFEST_URL: &str = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
+/// All textures will be sourced from here.
 const SOURCE_DIRECTORY: &str = "block";
+/// All (most) textures in this directories will be replaced.
 const TARGET_DIRECTORIES: &[&str] = &["block", "entity", "item", "trims"];
 
 const SIZE: u32 = 16;
