@@ -3,8 +3,8 @@
 mod client;
 mod manifest;
 
-pub use client::output_directories;
-pub use manifest::get_client_jar_as_bytes;
+pub use client::*;
+pub use manifest::*;
 
 use camino::*;
 use image::{
@@ -19,10 +19,11 @@ use walkdir::*;
 pub const WORKING_DIR: &str = ".wool";
 /// Where it all begins.
 const MANIFEST_URL: &str = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
-/// All textures will be sourced from here.
-const SOURCE_DIRECTORY: &str = "block";
-/// All (most) textures in this directories will be replaced.
-const TARGET_DIRECTORIES: &[&str] = &["block", "entity", "item", "trims"];
+const HOME_DIR_LEN: usize = 17;
+const SOURCE_DIR: &str = ".wool/client_data/assets/minecraft/textures/";
+/// Directories which will have the majority of their textures replaced.
+/// The first entry will be used as the source.
+const TARGET_DIR: &[&str] = &["block", "entity", "item", "trims"];
 
 const SIZE: u32 = 16;
 
@@ -193,6 +194,7 @@ fn get_image(path: Utf8PathBuf) -> Texture {
     Texture { img, path }
 }
 
+#[inline]
 fn find_distance(a: &Rgba<u8>, b: &Rgba<u8>) -> i64 {
     let dr = a.0[0] as i64 - b.0[0] as i64;
     let dg = a.0[1] as i64 - b.0[1] as i64;

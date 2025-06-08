@@ -6,7 +6,7 @@ use woolblocks::WORKING_DIR;
 
 fn main() {
     if fs::exists(WORKING_DIR).unwrap() {
-        println!("clearing old dir");
+        println!("deleting old dir");
         fs::remove_dir_all(WORKING_DIR).unwrap();
     }
     println!("creating new dir");
@@ -16,7 +16,7 @@ fn main() {
     println!("writing to fs (just for lols for now)");
     fs::write(WORKING_DIR.to_string() + "/client.jar", &bytes).unwrap();
     println!("extracting");
-    woolblocks::output_directories(bytes);
+    woolblocks::client_jar_into_sources(bytes);
     return;
 
     let rp_dir = env::args().into_iter().nth(1).unwrap();
