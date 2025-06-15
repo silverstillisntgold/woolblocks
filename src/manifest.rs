@@ -1,3 +1,4 @@
+use crate::MANIFEST_URL;
 use reqwest::blocking::get as http_get;
 use serde::Deserialize;
 use sha1_smol::Sha1;
@@ -23,7 +24,7 @@ struct Version {
 
 #[derive(Deserialize)]
 struct PackageManifest {
-    downloads: Download,
+    download: Download,
 }
 
 #[derive(Deserialize)]
@@ -38,8 +39,8 @@ struct ClientData {
     url: String,
 }
 
-/// Return the raw bytes of the client jar for the passed `version_id`,
-/// or the latest version if `None` is passed.
+/// Returns the raw bytes of the client jar for the passed `version_id`,
+/// or for the latest stable version if `None` is passed.
 pub fn get_client_jar_as_bytes(version_id: Option<&str>) -> Box<[u8]> {
     let version = get_version(version_id);
     let client_data = get_client_data(version);
@@ -47,13 +48,13 @@ pub fn get_client_jar_as_bytes(version_id: Option<&str>) -> Box<[u8]> {
 }
 
 fn get_version(version_id: Option<&str>) -> Version {
-    let manifest = http_get(crate::MANIFEST_URL)
+    let manifest = http_get(MANIFEST_URL)
         .unwrap()
         .json::<VersionManifestV2>()
         .unwrap();
-    // Get version data from the manifest, either using the latest version
+    // Get version data from the manifest, either using the latest stable version
     // as provided by said manifest, or from user-provided version.
-    let target_version = version_id.unwrap_or(manifest.latest.release.as_str());
+    let target_version = version_id.unwrap_or(&manifest.latest.release);
     manifest
         .versions
         .into_iter()
@@ -62,23 +63,22 @@ fn get_version(version_id: Option<&str>) -> Version {
 }
 
 fn get_client_data(version: Version) -> ClientData {
-    let package_manifest_bytes = http_get(version.url.as_str()).unwrap().bytes().unwrap();
+    let package_manifest_bytes = http_get(&version.url).unwrap().bytes().unwrap();
     let package_manifest_hash = Sha1::from(&package_manifest_bytes).digest().to_string();
     assert!(
         version.sha1 == package_manifest_hash,
         "sha1 validation of package manifest for version \"{}\" failed",
-        version.id.as_str()
+        &version.id
     );
-    let package_manifest =
-        serde_json::from_slice::<PackageManifest>(&package_manifest_bytes).unwrap();
-    package_manifest.downloads.client
+    serde_json::from_slice::<PackageManifest>(&package_manifest_bytes)
+        .unwrap()
+        .download
+        .client
 }
 
 fn get_raw_client_bytes(client_data: ClientData) -> Box<[u8]> {
-    // Sanity check
-    assert!(client_data.url.ends_with("client.jar"));
-    let client_bytes = http_get(client_data.url.as_str()).unwrap().bytes().unwrap();
-    // Don't bother computing and comparing hashes if sizes are mismatched.
+    let client_bytes = http_get(&client_data.url).unwrap().bytes().unwrap();
+    // Don't bother computing/comparing hashes if sizes are mismatched.
     assert_eq!(
         client_data.size,
         client_bytes.len() as u64,
