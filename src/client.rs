@@ -1,38 +1,80 @@
-use crate::manifest::get_client_jar_as_bytes as gcjab; // lol
+use crate::manifest::get_client_jar_as_bytes;
 use crate::{HOME_DIR_LEN, SOURCE_DIR, TARGET_DIR};
-use camino::{Utf8Path, Utf8PathBuf};
-use std::io::Cursor;
+use camino::Utf8PathBuf;
+use image::codecs::png::*;
+use std::ffi::OsString;
+use std::io::{Cursor, copy};
+use std::path::PathBuf;
+use vfs::{FileSystem, MemoryFS, VfsPath};
 use zip::ZipArchive;
 
-pub fn output_directories(client_data: Box<[u8]>) {
-    let cursor = Cursor::new(client_data);
-    ZipArchive::new(cursor)
-        .unwrap()
-        .extract(&SOURCE_DIR[..HOME_DIR_LEN])
-        .unwrap();
+/// Stores the raw bytes of a client jar.
+pub struct ClientJar(Box<[u8]>);
+
+impl From<Box<[u8]>> for ClientJar {
+    fn from(value: Box<[u8]>) -> Self {
+        Self(value)
+    }
 }
 
-/// Given the raw data of a client jar, ...
-pub fn client_jar_into_sources(client_data: Box<[u8]>) -> Box<[Utf8PathBuf]> {
+impl ClientJar {
+    pub fn new(version_id: Option<&str>) -> Self {
+        get_client_jar_as_bytes(version_id).into()
+    }
+
+    pub fn yes(self) {}
+
+    /// Extracts all files from the contents of `self` into a virtual,
+    /// in-memory filesystem. Returns the root of said filesystem.
+    fn extract_to_virt_fs(self) -> VfsPath {
+        let reader = Cursor::new(self.0);
+        let mut zip = ZipArchive::new(reader).unwrap();
+        let virt_root = VfsPath::new(MemoryFS::new());
+        for file_number in 0..zip.len() {
+            let mut zipped_file = zip.by_index(file_number).unwrap();
+            assert!(
+                zipped_file.is_file(),
+                "`ZipArchive::by_index` should only provide files"
+            );
+            if let Some(path) = zipped_file
+                .enclosed_name()
+                .map(PathBuf::into_os_string)
+                .map(OsString::into_string)
+                .map(Result::unwrap)
+            {
+                let path = virt_root.join(path).unwrap();
+                path.parent().create_dir_all().unwrap();
+                let mut virt_file = path.create_file().unwrap();
+                copy(&mut zipped_file, &mut virt_file).unwrap();
+            }
+        }
+        virt_root
+    }
+}
+
+pub struct Texture2 {
+    path: Utf8PathBuf,
+    texture_bytes: Box<[u8]>,
+}
+
+pub fn client_jar_into_sources(client_data: Box<[u8]>) -> Box<[Texture2]> {
     let reader = Cursor::new(client_data);
     ZipArchive::new(reader)
         .unwrap()
         .extract(&SOURCE_DIR[..HOME_DIR_LEN])
         .unwrap();
 
-    let mut paths = walkdir::WalkDir::new(&SOURCE_DIR[..HOME_DIR_LEN])
+    walkdir::WalkDir::new(&SOURCE_DIR[..HOME_DIR_LEN])
         .into_iter()
         .map(|dir| {
             let dir = dir.unwrap();
             let ft = dir.file_type();
-            let path = Utf8Path::from_path(dir.path()).unwrap().to_owned();
+            let path = Utf8PathBuf::from_path_buf(dir.into_path()).unwrap();
             (path, ft)
         })
         .filter_map(|(dir, ft)| {
-            match dir.starts_with(SOURCE_DIR)
-                && (ft.is_dir() || (ft.is_file() && dir.as_str().ends_with(".png")))
-            {
-                true => Some(dir.to_path_buf()),
+            match dir.starts_with(SOURCE_DIR) && ft.is_file() && dir.as_str().ends_with(".png") {
+                true => Some(dir),
                 false => None,
             }
         })
@@ -41,9 +83,16 @@ pub fn client_jar_into_sources(client_data: Box<[u8]>) -> Box<[Utf8PathBuf]> {
                 .into_iter()
                 .any(|target| path.components().any(|c| c.as_str().eq(*target)))
         })
-        .collect::<Box<_>>();
+        .map(|dir| {
+            let data = std::fs::read(dir.as_std_path()).unwrap().into_boxed_slice();
+            Texture2 {
+                path: dir,
+                texture_bytes: data,
+            }
+        })
+        .collect()
 
-    paths.sort_unstable_by_key(|path| path.components().count());
+    /*paths.sort_unstable_by_key(|path| path.components().count());
     println!("{:#?}", paths);
 
     let wool = paths
@@ -53,7 +102,9 @@ pub fn client_jar_into_sources(client_data: Box<[u8]>) -> Box<[Utf8PathBuf]> {
     println!("{}", wool);
     let mut img = image::ImageReader::open(wool).unwrap();
     img.set_format(image::ImageFormat::Png);
-    let wool_img = img.decode().unwrap().to_luma_alpha8();
+    let wool_img = img.decode().unwrap().to_rgba8();
 
-    paths
+    let f = std::fs::File::create("rizz.ler.real").unwrap();
+    let enc = PngEncoder::new_with_quality(f, CompressionType::Best, FilterType::default());
+    wool_img.write_with_encoder(enc).unwrap();*/
 }

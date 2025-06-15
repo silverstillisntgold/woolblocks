@@ -3,9 +3,6 @@
 mod client;
 mod manifest;
 
-pub use client::*;
-pub use manifest::*;
-
 use camino::*;
 use image::{
     codecs::png::{CompressionType, FilterType, PngEncoder},
@@ -15,6 +12,8 @@ use rayon::prelude::*;
 use std::collections::HashMap;
 use std::fs;
 use walkdir::*;
+
+pub use client::ClientJar;
 
 pub const WORKING_DIR: &str = ".wool";
 /// Where it all begins.
@@ -66,7 +65,7 @@ pub fn generate_texture_pack(src_path: Utf8PathBuf, new_pack_name: String) {
     let cur_pack_name = src_path.file_name().unwrap().to_owned();
     WalkDir::new(src_path.as_std_path())
         .into_iter()
-        .map(|e| e.unwrap())
+        .map(Result::unwrap)
         .for_each(|e| {
             let old_entry_location = e.path().to_str().unwrap();
             let new_entry_location = old_entry_location.replace(&cur_pack_name, &new_pack_name);
