@@ -18,8 +18,25 @@ impl From<Box<[u8]>> for ClientJar {
 }
 
 impl ClientJar {
-    pub fn new(version_id: Option<&str>) -> Self {
-        get_client_jar_as_bytes(version_id).into()
+    pub fn new_stable(version_id: Option<&str>) -> Self {
+        get_client_jar_as_bytes(version_id, true).into()
+    }
+
+    pub fn new_snapshot(version_id: Option<&str>) -> Self {
+        get_client_jar_as_bytes(version_id, false).into()
+    }
+
+    pub fn print(self) {
+        let virt_root = self.extract_to_virt_fs();
+        let mut v = virt_root
+            .walk_dir()
+            .unwrap()
+            .map(Result::unwrap)
+            .map(|p| p.as_str().to_owned())
+            .collect::<Vec<_>>();
+        v.sort_unstable();
+        v.sort_unstable_by_key(|s| s.len());
+        println!("{:#?}", v);
     }
 
     pub fn yes(self) {}

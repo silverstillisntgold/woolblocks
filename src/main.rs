@@ -4,7 +4,8 @@ use std::env;
 use std::fs;
 
 fn main() {
-    // TODO
+    let t = woolblocks::ClientJar::new_stable(None);
+    t.print();
     return;
 
     let rp_dir = env::args().into_iter().nth(1).unwrap();
