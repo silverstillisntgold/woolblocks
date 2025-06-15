@@ -2,21 +2,9 @@
 
 use std::env;
 use std::fs;
-use woolblocks::WORKING_DIR;
 
 fn main() {
-    if fs::exists(WORKING_DIR).unwrap() {
-        println!("deleting old dir");
-        fs::remove_dir_all(WORKING_DIR).unwrap();
-    }
-    println!("creating new dir");
-    fs::create_dir(WORKING_DIR).unwrap();
-    println!("downloading client jar");
-    let bytes = woolblocks::get_client_jar_as_bytes(None);
-    println!("writing to fs (just for lols for now)");
-    fs::write(WORKING_DIR.to_string() + "/client.jar", &bytes).unwrap();
-    println!("extracting");
-    woolblocks::client_jar_into_sources(bytes);
+    // TODO
     return;
 
     let rp_dir = env::args().into_iter().nth(1).unwrap();
