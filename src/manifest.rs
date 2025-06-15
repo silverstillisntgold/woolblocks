@@ -1,22 +1,22 @@
 use crate::MANIFEST_URL;
-use reqwest::blocking::get as http_get;
+use reqwest::blocking::get as https_get;
 use serde::Deserialize;
 use sha1_smol::Sha1;
 
 #[derive(Deserialize)]
 struct VersionManifestV2 {
-    latest: Latest,
-    versions: Vec<Version>,
+    latest: LatestData,
+    versions: Vec<VersionData>,
 }
 
 #[derive(Deserialize)]
-struct Latest {
+struct LatestData {
     release: String,
     snapshot: String,
 }
 
 #[derive(Deserialize)]
-struct Version {
+struct VersionData {
     id: String,
     sha1: String,
     url: String,
@@ -24,11 +24,11 @@ struct Version {
 
 #[derive(Deserialize)]
 struct PackageManifest {
-    download: Download,
+    downloads: DownloadData,
 }
 
 #[derive(Deserialize)]
-struct Download {
+struct DownloadData {
     client: ClientData,
 }
 
@@ -47,23 +47,23 @@ pub fn get_client_jar_as_bytes(version_id: Option<&str>) -> Box<[u8]> {
     get_raw_client_bytes(client_data)
 }
 
-fn get_version(version_id: Option<&str>) -> Version {
-    let manifest = http_get(MANIFEST_URL)
+fn get_version(version_id: Option<&str>) -> VersionData {
+    let version_manifest = https_get(MANIFEST_URL)
         .unwrap()
         .json::<VersionManifestV2>()
         .unwrap();
     // Get version data from the manifest, either using the latest stable version
     // as provided by said manifest, or from user-provided version.
-    let target_version = version_id.unwrap_or(&manifest.latest.release);
-    manifest
+    let target_version = version_id.unwrap_or(&version_manifest.latest.release);
+    version_manifest
         .versions
         .into_iter()
         .find(|v| v.id.as_str().eq(target_version))
         .unwrap()
 }
 
-fn get_client_data(version: Version) -> ClientData {
-    let package_manifest_bytes = http_get(&version.url).unwrap().bytes().unwrap();
+fn get_client_data(version: VersionData) -> ClientData {
+    let package_manifest_bytes = https_get(&version.url).unwrap().bytes().unwrap();
     let package_manifest_hash = Sha1::from(&package_manifest_bytes).digest().to_string();
     assert!(
         version.sha1 == package_manifest_hash,
@@ -72,12 +72,12 @@ fn get_client_data(version: Version) -> ClientData {
     );
     serde_json::from_slice::<PackageManifest>(&package_manifest_bytes)
         .unwrap()
-        .download
+        .downloads
         .client
 }
 
 fn get_raw_client_bytes(client_data: ClientData) -> Box<[u8]> {
-    let client_bytes = http_get(&client_data.url).unwrap().bytes().unwrap();
+    let client_bytes = https_get(&client_data.url).unwrap().bytes().unwrap();
     // Don't bother computing/comparing hashes if sizes are mismatched.
     assert_eq!(
         client_data.size,
