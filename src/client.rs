@@ -1,4 +1,4 @@
-use crate::manifest::get_client_jar_as_bytes;
+use crate::manifest::{Version, get_client_jar_as_bytes};
 use crate::{HOME_DIR_LEN, SOURCE_DIR, TARGET_DIR};
 use camino::Utf8PathBuf;
 use image::codecs::png::*;
@@ -18,12 +18,16 @@ impl From<Box<[u8]>> for ClientJar {
 }
 
 impl ClientJar {
-    pub fn new_stable(version_id: Option<&str>) -> Self {
-        get_client_jar_as_bytes(version_id, true).into()
+    pub fn new(version_id: &str) -> Self {
+        get_client_jar_as_bytes(Version::Custom(version_id)).into()
     }
 
-    pub fn new_snapshot(version_id: Option<&str>) -> Self {
-        get_client_jar_as_bytes(version_id, false).into()
+    pub fn new_stable() -> Self {
+        get_client_jar_as_bytes(Version::Stable).into()
+    }
+
+    pub fn new_snapshot() -> Self {
+        get_client_jar_as_bytes(Version::Snapshot).into()
     }
 
     pub fn print(self) {

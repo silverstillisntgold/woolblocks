@@ -39,27 +39,38 @@ struct ClientData {
     url: String,
 }
 
+pub enum Version<'a> {
+    Custom(&'a str),
+    Stable,
+    Snapshot,
+}
+
 /// Returns the raw bytes of the client jar for the passed `version_id`,
 /// or for the latest stable version if `None` is passed.
-pub fn get_client_jar_as_bytes(version_id: Option<&str>, is_stable: bool) -> Box<[u8]> {
-    let version = get_version(version_id, is_stable);
+pub fn get_client_jar_as_bytes(version_id: Version) -> Box<[u8]> {
+    let version = get_version(version_id);
     let client_data = get_client_data(version);
     get_raw_client_bytes(client_data)
 }
 
-fn get_version(version_id: Option<&str>, is_stable: bool) -> VersionData {
+fn get_version(version_id: Version) -> VersionData {
     let version_manifest = https_get(MANIFEST_URL)
         .unwrap()
         .json::<VersionManifestV2>()
         .unwrap();
-    let fallback = if is_stable {
-        version_manifest.latest.release.as_str()
-    } else {
-        version_manifest.latest.snapshot.as_str()
+    let (stable, snapshot) = {
+        let tmp = &version_manifest.latest;
+        let stable = tmp.release.as_str();
+        let snapshot = tmp.snapshot.as_str();
+        (stable, snapshot)
     };
     // Get version data from the manifest, either using the latest stable version
     // as provided by said manifest, or from user-provided version.
-    let target_version = version_id.unwrap_or(fallback);
+    let target_version = match version_id {
+        Version::Custom(v) => v,
+        Version::Stable => stable,
+        Version::Snapshot => snapshot,
+    };
     version_manifest
         .versions
         .into_iter()
