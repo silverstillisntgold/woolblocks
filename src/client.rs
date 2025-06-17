@@ -43,8 +43,6 @@ impl ClientJar {
         println!("{:#?}", v);
     }
 
-    pub fn yes(self) {}
-
     /// Extracts all files from the contents of `self` into a virtual,
     /// in-memory filesystem. Returns the root of said filesystem.
     fn extract_to_virt_fs(self) -> VfsPath {
@@ -72,6 +70,8 @@ impl ClientJar {
         virt_root
     }
 }
+
+pub trait TextureGenerator {}
 
 pub struct Texture2 {
     path: Utf8PathBuf,

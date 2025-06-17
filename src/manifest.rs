@@ -58,18 +58,12 @@ fn get_version(version_id: Version) -> VersionData {
         .unwrap()
         .json::<VersionManifestV2>()
         .unwrap();
-    let (stable, snapshot) = {
-        let tmp = &version_manifest.latest;
-        let stable = tmp.release.as_str();
-        let snapshot = tmp.snapshot.as_str();
-        (stable, snapshot)
-    };
     // Get version data from the manifest, either using the latest stable version
     // as provided by said manifest, or from user-provided version.
     let target_version = match version_id {
-        Version::Custom(v) => v,
-        Version::Stable => stable,
-        Version::Snapshot => snapshot,
+        Version::Custom(version) => version,
+        Version::Stable => version_manifest.latest.release.as_str(),
+        Version::Snapshot => version_manifest.latest.snapshot.as_str(),
     };
     version_manifest
         .versions
