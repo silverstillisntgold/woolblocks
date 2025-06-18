@@ -193,7 +193,6 @@ fn get_image(path: Utf8PathBuf) -> Texture {
     Texture { img, path }
 }
 
-#[inline]
 fn find_distance(a: &Rgba<u8>, b: &Rgba<u8>) -> i64 {
     let dr = a.0[0] as i64 - b.0[0] as i64;
     let dg = a.0[1] as i64 - b.0[1] as i64;

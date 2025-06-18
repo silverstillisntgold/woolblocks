@@ -41,7 +41,7 @@ struct ClientData {
 
 pub enum Version<'a> {
     Custom(&'a str),
-    Stable,
+    Release,
     Snapshot,
 }
 
@@ -62,7 +62,7 @@ fn get_version(version_id: Version) -> VersionData {
     // as provided by said manifest, or from user-provided version.
     let target_version = match version_id {
         Version::Custom(version) => version,
-        Version::Stable => version_manifest.latest.release.as_str(),
+        Version::Release => version_manifest.latest.release.as_str(),
         Version::Snapshot => version_manifest.latest.snapshot.as_str(),
     };
     version_manifest

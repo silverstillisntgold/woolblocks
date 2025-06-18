@@ -5,7 +5,7 @@ use image::codecs::png::*;
 use std::ffi::OsString;
 use std::io::{Cursor, copy};
 use std::path::PathBuf;
-use vfs::{FileSystem, MemoryFS, VfsPath};
+use vfs::{MemoryFS, VfsPath};
 use zip::ZipArchive;
 
 /// Stores the raw bytes of a client jar.
@@ -22,8 +22,8 @@ impl ClientJar {
         get_client_jar_as_bytes(Version::Custom(version_id)).into()
     }
 
-    pub fn new_stable() -> Self {
-        get_client_jar_as_bytes(Version::Stable).into()
+    pub fn new_release() -> Self {
+        get_client_jar_as_bytes(Version::Release).into()
     }
 
     pub fn new_snapshot() -> Self {
@@ -41,6 +41,14 @@ impl ClientJar {
         v.sort_unstable();
         v.sort_unstable_by_key(|s| s.len());
         println!("{:#?}", v);
+        let wow = virt_root
+            .walk_dir()
+            .unwrap()
+            .map(Result::unwrap)
+            .find(|x| x.as_str().contains("version.json"))
+            .unwrap();
+        let xd = wow.read_to_string().unwrap();
+        println!("{}", xd);
     }
 
     /// Extracts all files from the contents of `self` into a virtual,
@@ -71,7 +79,11 @@ impl ClientJar {
     }
 }
 
-pub trait TextureGenerator {}
+pub trait TextureGenerator {
+    fn make_new(&self) -> u64 {
+        69_420
+    }
+}
 
 pub struct Texture2 {
     path: Utf8PathBuf,

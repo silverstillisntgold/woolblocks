@@ -4,7 +4,7 @@ use std::env;
 use std::fs;
 
 fn main() {
-    let t = woolblocks::ClientJar::new_stable();
+    let t = woolblocks::ClientJar::new_release();
     t.print();
     return;
 
