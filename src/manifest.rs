@@ -69,7 +69,11 @@ fn get_version(version_id: Version) -> VersionData {
         .versions
         .into_iter()
         .find(|v| v.id.as_str().eq(target_version))
-        .unwrap()
+        // Should only be reachable when using incorrect `Version::Custom` from user.
+        .expect(&format!(
+            "provided 'target_version' {} should be a valid Minecraft version",
+            target_version
+        ))
 }
 
 fn get_client_data(version: VersionData) -> ClientData {
