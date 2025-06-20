@@ -105,56 +105,54 @@ impl std::fmt::Debug for TextureV2 {
 }
 
 pub trait TextureGenerator {
-    /// Returns some subset of the textures in `virt_root`, which will then be
-    /// used when generating new textures.
-    fn get_src_textures(&self, virt_root: &VfsPath) -> Vec<TextureV2>;
+    /// TODO: docs
+    fn get_src_textures(&self, dst_textures: &[TextureV2]) -> Vec<TextureV2>;
 
     /// Returns all textures which will be overridden using the textures
-    /// previously computed in [`TextureGenerator::get_src_textures`].
+    /// previously computed by [`TextureGenerator::get_src_textures`].
     fn get_dst_textures(&self, virt_root: &VfsPath) -> Vec<TextureV2> {
         virt_root
             .walk_dir()
             .unwrap()
             .map(Result::unwrap)
-            .filter(|path| {
-                let s = path.as_str();
-                s.ends_with(".png") && s.contains(TARGET_DIR[0])
-            })
             .filter_map(|path| {
                 let md = path.metadata().unwrap();
-                (md.file_type == VfsFileType::File).then(|| {
+                (md.file_type == VfsFileType::File && path.as_str().ends_with(".png")).then(|| {
                     let buf = {
-                        let capacity = md.len as usize;
+                        let capacity = md.len as usize + 1;
                         let mut writer = Vec::with_capacity(capacity);
                         let mut reader = path.open_file().unwrap();
                         copy(&mut reader, &mut writer).unwrap();
                         writer
                     };
-                    let img = load_from_memory_with_format(&buf, ImageFormat::Png).unwrap();
-                    let img_gray = img.to_luma_alpha8();
-                    let img_rgba = img.to_rgba8();
                     let path = Utf8PathBuf::from(path.as_str());
-                    TextureV2 {
-                        img_gray,
-                        img_rgba,
-                        path,
-                    }
+                    (buf, path)
                 })
             })
-            .collect::<Vec<_>>()
+            .map(|(buf, path)| {
+                let img = load_from_memory_with_format(&buf, ImageFormat::Png).unwrap();
+                let img_gray = img.to_luma_alpha8();
+                let img_rgba = img.to_rgba8();
+                TextureV2 {
+                    img_gray,
+                    img_rgba,
+                    path,
+                }
+            })
+            .collect()
     }
 }
 
 pub struct Wool;
 impl TextureGenerator for Wool {
-    fn get_src_textures(&self, virt_root: &VfsPath) -> Vec<TextureV2> {
+    fn get_src_textures(&self, dst_textures: &[TextureV2]) -> Vec<TextureV2> {
         todo!()
     }
 }
 
 pub struct All;
 impl TextureGenerator for All {
-    fn get_src_textures(&self, virt_root: &VfsPath) -> Vec<TextureV2> {
+    fn get_src_textures(&self, dst_textures: &[TextureV2]) -> Vec<TextureV2> {
         todo!()
     }
 }
