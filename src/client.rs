@@ -1,8 +1,10 @@
 use crate::TARGET_DIR;
 use crate::manifest::{Version, get_client_jar_as_bytes};
+use camino::Utf8PathBuf;
 use image::codecs::png::*;
+use image::*;
 use std::io::{Cursor, copy};
-use vfs::{MemoryFS, VfsPath};
+use vfs::{MemoryFS, VfsFileType, VfsPath};
 use zip::ZipArchive;
 
 /// Stores the raw bytes of a client jar.
@@ -53,7 +55,7 @@ impl ClientJar {
 
     /// Extracts all files from the contents of `self` into a virtual,
     /// in-memory filesystem. Returns the root of said filesystem.
-    fn extract_to_virt_fs(self) -> VfsPath {
+    pub fn extract_to_virt_fs(self) -> VfsPath {
         let reader = Cursor::new(self.0);
         let mut zip = ZipArchive::new(reader).unwrap();
         let virt_root = VfsPath::new(MemoryFS::new());
@@ -87,6 +89,72 @@ impl ClientJar {
     }
 }
 
+#[derive(Clone)]
+pub struct TextureV2 {
+    img_gray: GrayAlphaImage,
+    img_rgba: RgbaImage,
+    path: Utf8PathBuf,
+}
+
+impl std::fmt::Debug for TextureV2 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TextureV2")
+            .field("path", &self.path)
+            .finish()
+    }
+}
+
 pub trait TextureGenerator {
-    fn get_textures(&self, virt_root: &VfsPath) -> !;
+    /// Returns some subset of the textures in `virt_root`, which will then be
+    /// used when generating new textures.
+    fn get_src_textures(&self, virt_root: &VfsPath) -> Vec<TextureV2>;
+
+    /// Returns all textures which will be overridden using the textures
+    /// previously computed in [`TextureGenerator::get_src_textures`].
+    fn get_dst_textures(&self, virt_root: &VfsPath) -> Vec<TextureV2> {
+        virt_root
+            .walk_dir()
+            .unwrap()
+            .map(Result::unwrap)
+            .filter(|path| {
+                let s = path.as_str();
+                s.ends_with(".png") && s.contains(TARGET_DIR[0])
+            })
+            .filter_map(|path| {
+                let md = path.metadata().unwrap();
+                (md.file_type == VfsFileType::File).then(|| {
+                    let buf = {
+                        let capacity = md.len as usize;
+                        let mut writer = Vec::with_capacity(capacity);
+                        let mut reader = path.open_file().unwrap();
+                        copy(&mut reader, &mut writer).unwrap();
+                        writer
+                    };
+                    let img = load_from_memory_with_format(&buf, ImageFormat::Png).unwrap();
+                    let img_gray = img.to_luma_alpha8();
+                    let img_rgba = img.to_rgba8();
+                    let path = Utf8PathBuf::from(path.as_str());
+                    TextureV2 {
+                        img_gray,
+                        img_rgba,
+                        path,
+                    }
+                })
+            })
+            .collect::<Vec<_>>()
+    }
+}
+
+pub struct Wool;
+impl TextureGenerator for Wool {
+    fn get_src_textures(&self, virt_root: &VfsPath) -> Vec<TextureV2> {
+        todo!()
+    }
+}
+
+pub struct All;
+impl TextureGenerator for All {
+    fn get_src_textures(&self, virt_root: &VfsPath) -> Vec<TextureV2> {
+        todo!()
+    }
 }

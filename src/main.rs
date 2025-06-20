@@ -1,10 +1,15 @@
 #![allow(unused)]
 
-use std::{env, fs};
+use std::env;
+use woolblocks::TextureGenerator;
 
 fn main() {
     let t = woolblocks::ClientJar::new_release();
-    t.print();
+    let x = t.extract_to_virt_fs();
+    let w = woolblocks::Wool;
+    let v = w.get_dst_textures(&x);
+    println!("{}", v.len());
+    println!("{:#?}", v);
     return;
 
     let rp_dir = env::args().into_iter().nth(1).unwrap();

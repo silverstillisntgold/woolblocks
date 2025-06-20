@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use std::fs;
 use walkdir::*;
 
-pub use client::ClientJar;
+pub use client::*;
 
 pub const WORKING_DIR: &str = ".wool";
 /// Where it all begins.
@@ -177,7 +177,7 @@ fn get_image_paths(src_path: Utf8PathBuf) -> Vec<Utf8PathBuf> {
         .map(|e| e.unwrap().into_path())
         .map(|path| Utf8PathBuf::try_from(path).unwrap())
         .filter_map(|path| {
-            if path.extension().is_some_and(|s| s == "png") {
+            if path.extension().is_some_and(|s| s.eq("png")) {
                 Some(path)
             } else {
                 None
