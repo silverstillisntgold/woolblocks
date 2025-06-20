@@ -7,7 +7,7 @@ fn main() {
     let t = woolblocks::ClientJar::new_release();
     let x = t.extract_to_virt_fs();
     let w = woolblocks::Wool;
-    let v = w.get_dst_textures(&x);
+    let v = w.get_dst_textures(x);
     println!("{}", v.len());
     println!("{:#?}", v);
     return;

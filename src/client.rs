@@ -107,7 +107,7 @@ impl std::fmt::Debug for TextureV2 {
 pub trait TextureGenerator {
     fn get_src_textures(&self, dst_textures: &[TextureV2]) -> Vec<TextureV2>;
 
-    fn get_dst_textures(&self, virt_root: &VfsPath) -> Vec<TextureV2> {
+    fn get_dst_textures(&self, virt_root: VfsPath) -> Vec<TextureV2> {
         virt_root
             .walk_dir()
             .unwrap()
@@ -140,9 +140,20 @@ pub trait TextureGenerator {
     }
 }
 
+use rayon::prelude::*;
+
 pub struct Wool;
 impl TextureGenerator for Wool {
     fn get_src_textures(&self, dst_textures: &[TextureV2]) -> Vec<TextureV2> {
+        let wool_base = dst_textures
+            .into_iter()
+            .find(|t| t.path.as_str().ends_with("white_wool.png"))
+            .unwrap()
+            .img_gray
+            .clone();
+
+        dst_textures.into_par_iter().map(|_| ());
+
         todo!()
     }
 }
