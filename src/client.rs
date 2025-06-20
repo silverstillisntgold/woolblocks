@@ -105,11 +105,8 @@ impl std::fmt::Debug for TextureV2 {
 }
 
 pub trait TextureGenerator {
-    /// TODO: docs
     fn get_src_textures(&self, dst_textures: &[TextureV2]) -> Vec<TextureV2>;
 
-    /// Returns all textures which will be overridden using the textures
-    /// previously computed by [`TextureGenerator::get_src_textures`].
     fn get_dst_textures(&self, virt_root: &VfsPath) -> Vec<TextureV2> {
         virt_root
             .walk_dir()
