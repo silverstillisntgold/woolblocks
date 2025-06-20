@@ -39,16 +39,19 @@ impl ClientJar {
             .map(|p| p.as_str().to_owned())
             .collect::<Vec<_>>();
         v.sort_unstable();
-        v.sort_unstable_by_key(|s| s.len());
+        v.sort_by_key(|s| s.len());
+        println!("entry count: {}", v.len());
         println!("{:#?}", v);
-        let wow = virt_root
+        let json = virt_root
             .walk_dir()
             .unwrap()
             .map(Result::unwrap)
             .find(|x| x.as_str().contains("version.json"))
+            .unwrap()
+            .read_to_string()
             .unwrap();
-        let xd = wow.read_to_string().unwrap();
-        println!("{}", xd);
+        println!("version.json contents:");
+        println!("{}", json);
     }
 
     /// Extracts all files from the contents of `self` into a virtual,
@@ -61,13 +64,23 @@ impl ClientJar {
             let mut zipped_file = zip.by_index(file_number).unwrap();
             assert!(
                 zipped_file.is_file(),
-                "`ZipArchive::by_index` should only provide files"
+                "'ZipArchive::by_index' should only provide files"
             );
             if let Some(path) = zipped_file
                 .enclosed_name()
                 .map(PathBuf::into_os_string)
                 .map(OsString::into_string)
                 .map(Result::unwrap)
+                .filter(|path| {
+                    let is_png = path.ends_with(".png");
+                    let is_in_target_dir = TARGET_DIR
+                        .into_iter()
+                        .any(|target_dir| path.contains(target_dir));
+                    let is_version_json = path.ends_with("version.json");
+                    (is_png && is_in_target_dir) || is_version_json
+                })
+                // Eliminate some goofy ah textures
+                .filter(|path| !path.contains("test") && !path.contains("debug"))
             {
                 let path = virt_root.join(path).unwrap();
                 path.parent().create_dir_all().unwrap();
@@ -79,11 +92,7 @@ impl ClientJar {
     }
 }
 
-pub trait TextureGenerator {
-    fn make_new(&self) -> u64 {
-        69_420
-    }
-}
+pub trait TextureGenerator {}
 
 pub struct Texture2 {
     path: Utf8PathBuf,

@@ -22,7 +22,7 @@ const HOME_DIR_LEN: usize = 17;
 const SOURCE_DIR: &str = ".wool/client_data/assets/minecraft/textures/";
 /// Directories which will have the majority of their textures replaced.
 /// The first entry will be used as the source.
-const TARGET_DIR: &[&str] = &["block", "entity", "item", "trims"];
+const TARGET_DIR: &[&str] = &["/block/", "/entity/", "/item/", "/trims/"];
 
 const SIZE: u32 = 16;
 
