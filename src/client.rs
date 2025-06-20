@@ -1,10 +1,7 @@
+use crate::TARGET_DIR;
 use crate::manifest::{Version, get_client_jar_as_bytes};
-use crate::{HOME_DIR_LEN, SOURCE_DIR, TARGET_DIR};
-use camino::Utf8PathBuf;
 use image::codecs::png::*;
-use std::ffi::OsString;
 use std::io::{Cursor, copy};
-use std::path::PathBuf;
 use vfs::{MemoryFS, VfsPath};
 use zip::ZipArchive;
 
@@ -68,9 +65,7 @@ impl ClientJar {
             );
             if let Some(path) = zipped_file
                 .enclosed_name()
-                .map(PathBuf::into_os_string)
-                .map(OsString::into_string)
-                .map(Result::unwrap)
+                .map(|path| path.into_os_string().into_string().unwrap())
                 .filter(|path| {
                     let is_png = path.ends_with(".png");
                     let is_in_target_dir = TARGET_DIR
@@ -79,7 +74,7 @@ impl ClientJar {
                     let is_version_json = path.ends_with("version.json");
                     (is_png && is_in_target_dir) || is_version_json
                 })
-                // Eliminate some goofy ah textures
+                // Eliminate some goofy ah textures.
                 .filter(|path| !path.contains("test") && !path.contains("debug"))
             {
                 let path = virt_root.join(path).unwrap();
@@ -92,4 +87,6 @@ impl ClientJar {
     }
 }
 
-pub trait TextureGenerator {}
+pub trait TextureGenerator {
+    fn get_textures(&self, virt_root: &VfsPath) -> !;
+}

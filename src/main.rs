@@ -1,7 +1,6 @@
 #![allow(unused)]
 
-use std::env;
-use std::fs;
+use std::{env, fs};
 
 fn main() {
     let t = woolblocks::ClientJar::new_release();

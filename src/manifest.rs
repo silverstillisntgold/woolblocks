@@ -58,8 +58,6 @@ fn get_version(version_id: Version) -> VersionData {
         .unwrap()
         .json::<VersionManifestV2>()
         .unwrap();
-    // Get version data from the manifest, either using the latest stable version
-    // as provided by said manifest, or from user-provided version.
     let target_version = match version_id {
         Version::Custom(version) => version,
         Version::Release => version_manifest.latest.release.as_str(),
@@ -104,8 +102,6 @@ fn get_raw_client_bytes(client_data: ClientData) -> Box<[u8]> {
         "sha1 validation of client jar failed"
     );
     // It seems like it's not currently possible to do this in
-    // a way that moves the underlying data instead of copying it,
-    // but since the client jar is relatively small it shouldn't
-    // make all that much of a difference in performance.
+    // a way that moves the underlying data instead of copying it.
     client_bytes.to_vec().into_boxed_slice()
 }
