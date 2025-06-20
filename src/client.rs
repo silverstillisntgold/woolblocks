@@ -3,6 +3,7 @@ use crate::manifest::{Version, get_client_jar_as_bytes};
 use camino::Utf8PathBuf;
 use image::codecs::png::*;
 use image::*;
+use rayon::prelude::*;
 use std::io::{Cursor, copy};
 use vfs::{MemoryFS, VfsFileType, VfsPath};
 use zip::ZipArchive;
@@ -89,7 +90,6 @@ impl ClientJar {
     }
 }
 
-#[derive(Clone)]
 pub struct TextureV2 {
     img_gray: GrayAlphaImage,
     img_rgba: RgbaImage,
@@ -139,8 +139,6 @@ pub trait TextureGenerator {
             .collect()
     }
 }
-
-use rayon::prelude::*;
 
 pub struct Wool;
 impl TextureGenerator for Wool {
