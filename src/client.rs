@@ -1,11 +1,10 @@
-use crate::TARGET_DIR;
 use crate::manifest::{Version, get_client_jar_as_bytes};
+use crate::{TARGET_DIR, Texture};
 use camino::Utf8PathBuf;
 use image::codecs::png::*;
 use image::*;
 use rayon::prelude::*;
 use std::collections::HashMap;
-use std::fmt::Debug;
 use std::io::{Cursor, copy};
 use vfs::{MemoryFS, VfsFileType, VfsPath};
 use zip::ZipArchive;
@@ -30,6 +29,10 @@ impl ClientJar {
 
     pub fn new_snapshot() -> Self {
         get_client_jar_as_bytes(Version::Snapshot).into()
+    }
+
+    pub fn into_virt_mem(self) -> VfsPath {
+        self.into()
     }
 }
 
@@ -68,28 +71,12 @@ impl From<ClientJar> for VfsPath {
     }
 }
 
-pub struct TextureV2 {
-    img_gray: GrayAlphaImage,
-    img_rgba: RgbaImage,
-    path: Utf8PathBuf,
-}
-
-impl Debug for TextureV2 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("TextureV2")
-            .field("path", &self.path)
-            .finish()
-    }
-}
-
 pub trait TextureGenerator {
-    fn get_src_textures(&self, dst_textures: &[TextureV2]) -> Vec<TextureV2>;
+    fn get_src_textures(&self, dst_textures: &[Texture]) -> Vec<Texture>;
 
-    fn get_texture_mappings() -> HashMap<Rgba<u8>, RgbaImage> {
-        todo!()
-    }
+    fn get_texture_mappings() -> HashMap<Rgba<u8>, RgbaImage>;
 
-    fn get_dst_textures(&self, virt_root: VfsPath) -> Vec<TextureV2> {
+    fn get_dst_textures(&self, virt_root: VfsPath) -> Vec<Texture> {
         virt_root
             .walk_dir()
             .unwrap()
@@ -104,43 +91,14 @@ pub trait TextureGenerator {
                         copy(&mut reader, &mut writer).unwrap();
                         writer
                     };
+                    let dyn_img = load_from_memory_with_format(&buf, ImageFormat::Png).unwrap();
+                    let img = dyn_img.to_rgba8();
                     let path = Utf8PathBuf::from(path.as_str());
-                    (buf, path)
+                    Texture { img, path }
                 })
-            })
-            .map(|(buf, path)| {
-                let img = load_from_memory_with_format(&buf, ImageFormat::Png).unwrap();
-                let img_gray = img.to_luma_alpha8();
-                let img_rgba = img.to_rgba8();
-                TextureV2 {
-                    img_gray,
-                    img_rgba,
-                    path,
-                }
             })
             .collect()
     }
 }
 
 pub struct Wool;
-impl TextureGenerator for Wool {
-    fn get_src_textures(&self, dst_textures: &[TextureV2]) -> Vec<TextureV2> {
-        let wool_base = dst_textures
-            .into_iter()
-            .find(|t| t.path.as_str().ends_with("white_wool.png"))
-            .unwrap()
-            .img_gray
-            .clone();
-
-        dst_textures.into_par_iter().map(|_| ());
-
-        todo!()
-    }
-}
-
-pub struct All;
-impl TextureGenerator for All {
-    fn get_src_textures(&self, dst_textures: &[TextureV2]) -> Vec<TextureV2> {
-        todo!()
-    }
-}

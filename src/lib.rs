@@ -10,6 +10,7 @@ use image::{
 };
 use rayon::prelude::*;
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::fs;
 use walkdir::*;
 
@@ -21,9 +22,15 @@ const SOURCE_DIR: &str = ".wool/client_data/assets/minecraft/textures/";
 const TARGET_DIR: &[&str] = &["/block/", "/entity/", "/item/", "/trims/"];
 const SIZE: u32 = 16;
 
-struct Texture {
+pub struct Texture {
     img: RgbaImage,
     path: Utf8PathBuf,
+}
+
+impl Debug for Texture {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Texture").field("path", &self.path).finish()
+    }
 }
 
 fn get_wool_map(wool_path: &Utf8Path) -> HashMap<Rgba<u8>, RgbaImage> {
