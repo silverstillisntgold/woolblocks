@@ -74,21 +74,14 @@ impl From<ClientJar> for VfsPath {
                 zipped_file.is_file(),
                 "`ZipArchive::by_index` should only provide files"
             );
-            if let Some(path) = zipped_file
-                .enclosed_name()
-                // Strings are just simpler to work with here.
-                .map(|path| path.into_os_string().into_string().unwrap())
-                .filter(|path| {
-                    let is_png = path.ends_with(".png");
-                    let is_in_target_dir = TARGET_DIR
-                        .into_iter()
-                        .any(|target_dir| path.contains(target_dir));
-                    let is_version_json = path.ends_with("version.json");
-                    (is_png && is_in_target_dir) || is_version_json
-                })
-                // Eliminate some goofy ah textures.
-                .filter(|path| !path.contains("test") && !path.contains("debug"))
-            {
+            let path = zipped_file.name();
+            let is_png = path.ends_with(".png");
+            let is_in_target_dir = TARGET_DIR
+                .into_iter()
+                .any(|target_dir| path.contains(target_dir));
+            let is_version_json = path.ends_with("version.json");
+            let isnt_goofy = !path.contains("test") && !path.contains("debug");
+            if (is_png && is_in_target_dir && isnt_goofy) || is_version_json {
                 let path = virt_root.join(path).unwrap();
                 path.parent().create_dir_all().unwrap();
                 let mut virt_file = path.create_file().unwrap();
