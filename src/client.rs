@@ -4,10 +4,12 @@ use camino::Utf8PathBuf;
 use image::codecs::png::*;
 use image::*;
 use rayon::prelude::*;
-use std::collections::HashMap;
+use std::collections::HashMap as HashMapCore;
 use std::io::{Cursor, copy};
 use vfs::{MemoryFS, VfsFileType, VfsPath};
 use zip::ZipArchive;
+
+type HashMap<K, V> = HashMapCore<K, V, foldhash::quality::RandomState>;
 
 /// Wraps the raw bytes of a client jar.
 pub struct ClientJar(Box<[u8]>);
@@ -42,8 +44,9 @@ impl ClientJar {
         self.into()
     }
 
-    pub fn print_json_data(self) {
-        let json = self
+    pub fn print_json_data(&self) {
+        let copy = ClientJar::from(self.0.clone());
+        let json = copy
             .into_virt_mem()
             .walk_dir()
             .unwrap()
@@ -69,7 +72,7 @@ impl From<ClientJar> for VfsPath {
             let mut zipped_file = zip.by_index(file_number).unwrap();
             assert!(
                 zipped_file.is_file(),
-                "'ZipArchive::by_index' should only provide files"
+                "`ZipArchive::by_index` should only provide files"
             );
             if let Some(path) = zipped_file
                 .enclosed_name()
@@ -97,8 +100,10 @@ impl From<ClientJar> for VfsPath {
 }
 
 pub trait TextureGenerator {
-    /// Convert the raw data of all image files within `virt_root` into textures,
-    /// and extract the resource pack version number from its `version.json`.
+    fn compute_texture_avg_mapping(&self, textures: Vec<Texture>) -> HashMap<Rgba<u8>, RgbaImage>;
+
+    /// Convert the raw data of all images within `virt_root` into textures,
+    /// and extract the resource pack version from its `version.json`.
     fn extract_data(&self, virt_root: VfsPath) -> (Vec<Texture>, u64) {
         let textures = virt_root
             .walk_dir()
@@ -106,7 +111,9 @@ pub trait TextureGenerator {
             .map(Result::unwrap)
             .filter_map(|path| {
                 let md = path.metadata().unwrap();
-                (md.file_type == VfsFileType::File && path.as_str().ends_with(".png")).then(|| {
+                let is_file = md.file_type == VfsFileType::File;
+                let is_png = path.as_str().ends_with(".png");
+                (is_file && is_png).then(|| {
                     // As ugly as it is this seems to be the best way
                     // to convert `VfsPath` files into buffers.
                     let buf = {
@@ -124,6 +131,7 @@ pub trait TextureGenerator {
             })
             .collect();
 
+        // It's fucking beautiful.
         let json_string = virt_root
             .walk_dir()
             .unwrap()
@@ -132,7 +140,6 @@ pub trait TextureGenerator {
             .unwrap()
             .read_to_string()
             .unwrap();
-        // It's fucking beautiful.
         let resource_pack_version = serde_json::from_str::<serde_json::Value>(&json_string)
             .unwrap()
             .as_object()
@@ -157,3 +164,8 @@ pub trait TextureGenerator {
 }
 
 pub struct Wool;
+impl TextureGenerator for Wool {
+    fn compute_texture_avg_mapping(&self, textures: Vec<Texture>) -> HashMap<Rgba<u8>, RgbaImage> {
+        todo!()
+    }
+}
