@@ -97,11 +97,9 @@ impl From<ClientJar> for VfsPath {
 }
 
 pub trait TextureGenerator {
-    fn get_src_textures(&self, dst_textures: &[Texture]) -> Vec<Texture>;
-
-    fn get_texture_mappings(&self) -> HashMap<Rgba<u8>, RgbaImage>;
-
-    fn get_target_textures(&self, virt_root: VfsPath) -> (Vec<Texture>, u64) {
+    /// Convert the raw data of all image files within `virt_root` into textures,
+    /// and extract the resource pack version number from its `version.json`.
+    fn extract_data(&self, virt_root: VfsPath) -> (Vec<Texture>, u64) {
         let textures = virt_root
             .walk_dir()
             .unwrap()
@@ -135,7 +133,7 @@ pub trait TextureGenerator {
             .read_to_string()
             .unwrap();
         // It's fucking beautiful.
-        let pack_version_resource = serde_json::from_str::<serde_json::Value>(&json_string)
+        let resource_pack_version = serde_json::from_str::<serde_json::Value>(&json_string)
             .unwrap()
             .as_object()
             .unwrap()
@@ -150,7 +148,11 @@ pub trait TextureGenerator {
             .as_u64()
             .unwrap();
 
-        (textures, pack_version_resource)
+        (textures, resource_pack_version)
+    }
+
+    fn write(&self, textures: Vec<Texture>, target_dir: &str) {
+        todo!()
     }
 }
 
