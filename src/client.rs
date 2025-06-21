@@ -9,7 +9,7 @@ use std::io::{Cursor, copy};
 use vfs::{MemoryFS, VfsFileType, VfsPath};
 use zip::ZipArchive;
 
-/// Stores the raw bytes of a client jar.
+/// Wraps the raw bytes of a client jar.
 pub struct ClientJar(Box<[u8]>);
 
 impl From<Box<[u8]>> for ClientJar {
@@ -19,18 +19,25 @@ impl From<Box<[u8]>> for ClientJar {
 }
 
 impl ClientJar {
+    /// Create a new [`ClientJar`] from the user-provided `version_id`.
+    ///
+    /// The program will panic if `version_id` match isn't found.
     pub fn new(version_id: &str) -> Self {
         get_client_jar_as_bytes(Version::Custom(version_id)).into()
     }
 
+    /// Create a new [`ClientJar`] from the latest release version available.
     pub fn new_release() -> Self {
         get_client_jar_as_bytes(Version::Release).into()
     }
 
+    /// Create a new [`ClientJar`] from the latest snapshot version available.
     pub fn new_snapshot() -> Self {
         get_client_jar_as_bytes(Version::Snapshot).into()
     }
 
+    /// Convert contents of `self` into an in-memory, virtual filesystem.
+    /// The returned [`VfsPath`] represents the root of said filesystem.
     pub fn into_virt_mem(self) -> VfsPath {
         self.into()
     }
@@ -38,9 +45,11 @@ impl ClientJar {
 
 impl From<ClientJar> for VfsPath {
     fn from(value: ClientJar) -> Self {
+        // Why worry about your operating system caching your filesystem
+        // when you can just force everything into RAM :).
+        let virt_root = VfsPath::new(MemoryFS::new());
         let reader = Cursor::new(value.0);
         let mut zip = ZipArchive::new(reader).unwrap();
-        let virt_root = VfsPath::new(MemoryFS::new());
         for file_number in 0..zip.len() {
             let mut zipped_file = zip.by_index(file_number).unwrap();
             assert!(
@@ -49,6 +58,7 @@ impl From<ClientJar> for VfsPath {
             );
             if let Some(path) = zipped_file
                 .enclosed_name()
+                // Strings are just simpler to work with here.
                 .map(|path| path.into_os_string().into_string().unwrap())
                 .filter(|path| {
                     let is_png = path.ends_with(".png");
@@ -74,19 +84,21 @@ impl From<ClientJar> for VfsPath {
 pub trait TextureGenerator {
     fn get_src_textures(&self, dst_textures: &[Texture]) -> Vec<Texture>;
 
-    fn get_texture_mappings() -> HashMap<Rgba<u8>, RgbaImage>;
+    fn get_texture_mappings(&self) -> HashMap<Rgba<u8>, RgbaImage>;
 
-    fn get_dst_textures(&self, virt_root: VfsPath) -> Vec<Texture> {
-        virt_root
+    fn get_target_textures(&self, virt_root: VfsPath) -> (Vec<Texture>, u64) {
+        let textures = virt_root
             .walk_dir()
             .unwrap()
             .map(Result::unwrap)
             .filter_map(|path| {
                 let md = path.metadata().unwrap();
                 (md.file_type == VfsFileType::File && path.as_str().ends_with(".png")).then(|| {
+                    // As ugly as it is this seems to be the best way
+                    // to convert `VfsPath` files into buffers.
                     let buf = {
-                        let capacity = md.len as usize + 1;
-                        let mut writer = Vec::with_capacity(capacity);
+                        let capacity = md.len as usize;
+                        let mut writer = vec![0; capacity];
                         let mut reader = path.open_file().unwrap();
                         copy(&mut reader, &mut writer).unwrap();
                         writer
@@ -97,7 +109,20 @@ pub trait TextureGenerator {
                     Texture { img, path }
                 })
             })
-            .collect()
+            .collect();
+
+        let pack_format = virt_root
+            .walk_dir()
+            .unwrap()
+            .map(Result::unwrap)
+            .find(|path| path.as_str().ends_with("version.json"))
+            .map(|version_json_path| {
+                // Spacing.
+                todo!()
+            })
+            .unwrap();
+
+        (textures, 0)
     }
 }
 
