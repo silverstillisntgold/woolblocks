@@ -4,6 +4,8 @@ use camino::Utf8PathBuf;
 use image::codecs::png::*;
 use image::*;
 use rayon::prelude::*;
+use std::collections::HashMap;
+use std::fmt::Debug;
 use std::io::{Cursor, copy};
 use vfs::{MemoryFS, VfsFileType, VfsPath};
 use zip::ZipArchive;
@@ -29,35 +31,11 @@ impl ClientJar {
     pub fn new_snapshot() -> Self {
         get_client_jar_as_bytes(Version::Snapshot).into()
     }
+}
 
-    pub fn print(self) {
-        let virt_root = self.extract_to_virt_fs();
-        let mut v = virt_root
-            .walk_dir()
-            .unwrap()
-            .map(Result::unwrap)
-            .map(|p| p.as_str().to_owned())
-            .collect::<Vec<_>>();
-        v.sort_unstable();
-        v.sort_by_key(|s| s.len());
-        println!("entry count: {}", v.len());
-        println!("{:#?}", v);
-        let json = virt_root
-            .walk_dir()
-            .unwrap()
-            .map(Result::unwrap)
-            .find(|x| x.as_str().contains("version.json"))
-            .unwrap()
-            .read_to_string()
-            .unwrap();
-        println!("version.json contents:");
-        println!("{}", json);
-    }
-
-    /// Extracts all files from the contents of `self` into a virtual,
-    /// in-memory filesystem. Returns the root of said filesystem.
-    pub fn extract_to_virt_fs(self) -> VfsPath {
-        let reader = Cursor::new(self.0);
+impl From<ClientJar> for VfsPath {
+    fn from(value: ClientJar) -> Self {
+        let reader = Cursor::new(value.0);
         let mut zip = ZipArchive::new(reader).unwrap();
         let virt_root = VfsPath::new(MemoryFS::new());
         for file_number in 0..zip.len() {
@@ -96,7 +74,7 @@ pub struct TextureV2 {
     path: Utf8PathBuf,
 }
 
-impl std::fmt::Debug for TextureV2 {
+impl Debug for TextureV2 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TextureV2")
             .field("path", &self.path)
@@ -106,6 +84,10 @@ impl std::fmt::Debug for TextureV2 {
 
 pub trait TextureGenerator {
     fn get_src_textures(&self, dst_textures: &[TextureV2]) -> Vec<TextureV2>;
+
+    fn get_texture_mappings() -> HashMap<Rgba<u8>, RgbaImage> {
+        todo!()
+    }
 
     fn get_dst_textures(&self, virt_root: VfsPath) -> Vec<TextureV2> {
         virt_root

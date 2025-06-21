@@ -1,14 +1,16 @@
 #![allow(unused)]
 
 use std::env;
-use woolblocks::TextureGenerator;
+use woolblocks::client::*;
 
 fn main() {
-    let t = woolblocks::ClientJar::new_release();
+    let t = ClientJar::new_release();
     let x = t.extract_to_virt_fs();
     let w = woolblocks::Wool;
     let v = w.get_dst_textures(x);
+    let wowie = w.get_src_textures(&v);
     println!("{}", v.len());
+    println!("{}", wowie.len());
     println!("{:#?}", v);
     return;
 

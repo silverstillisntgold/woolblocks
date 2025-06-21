@@ -1,6 +1,6 @@
 #![allow(unused)]
 
-mod client;
+pub mod client;
 mod manifest;
 
 use camino::*;
@@ -13,26 +13,20 @@ use std::collections::HashMap;
 use std::fs;
 use walkdir::*;
 
-pub use client::*;
-
-pub const WORKING_DIR: &str = ".wool";
 /// Where it all begins.
 const MANIFEST_URL: &str = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
-const HOME_DIR_LEN: usize = 17;
 const SOURCE_DIR: &str = ".wool/client_data/assets/minecraft/textures/";
 /// Directories which will have the majority of their textures replaced.
 /// The first entry will be used as the source.
 const TARGET_DIR: &[&str] = &["/block/", "/entity/", "/item/", "/trims/"];
-
 const SIZE: u32 = 16;
 
-#[derive(Clone)]
 struct Texture {
     img: RgbaImage,
     path: Utf8PathBuf,
 }
 
-fn get_wool_map(wool_path: &Utf8Path) -> HashMap<u32, RgbaImage> {
+fn get_wool_map(wool_path: &Utf8Path) -> HashMap<Rgba<u8>, RgbaImage> {
     const RGB_MAX: u32 = 1 << 24;
     let mut img = ImageReader::open(wool_path.as_std_path()).unwrap();
     img.set_format(ImageFormat::Png);
@@ -56,7 +50,7 @@ fn get_wool_map(wool_path: &Utf8Path) -> HashMap<u32, RgbaImage> {
                 wool_img.put_pixel(x, y, rgba);
             }
 
-            (idx, wool_img)
+            (rgba, wool_img)
         })
         .collect()
 }
