@@ -93,8 +93,6 @@ impl From<ClientJar> for VfsPath {
                 path.parent().create_dir_all().unwrap();
                 let mut virt_file = path.create_file().unwrap();
                 copy(&mut zipped_file, &mut virt_file).unwrap();
-            } else {
-                unreachable!();
             }
         }
         virt_root
