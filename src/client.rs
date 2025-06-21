@@ -41,6 +41,21 @@ impl ClientJar {
     pub fn into_virt_mem(self) -> VfsPath {
         self.into()
     }
+
+    pub fn print_json_data(self) {
+        let json = self
+            .into_virt_mem()
+            .walk_dir()
+            .unwrap()
+            .map(Result::unwrap)
+            .find(|path| path.as_str().ends_with("version.json"))
+            .unwrap()
+            .read_to_string()
+            .unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        println!("{}", json);
+        println!("{:#?}", parsed.as_object().unwrap());
+    }
 }
 
 impl From<ClientJar> for VfsPath {
@@ -111,18 +126,31 @@ pub trait TextureGenerator {
             })
             .collect();
 
-        let pack_format = virt_root
+        let json_string = virt_root
             .walk_dir()
             .unwrap()
             .map(Result::unwrap)
             .find(|path| path.as_str().ends_with("version.json"))
-            .map(|version_json_path| {
-                // Spacing.
-                todo!()
-            })
+            .unwrap()
+            .read_to_string()
+            .unwrap();
+        // It's fucking beautiful.
+        let pack_version_resource = serde_json::from_str::<serde_json::Value>(&json_string)
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .get("pack_version")
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .get("resource")
+            .unwrap()
+            .as_number()
+            .unwrap()
+            .as_u64()
             .unwrap();
 
-        (textures, 0)
+        (textures, pack_version_resource)
     }
 }
 
