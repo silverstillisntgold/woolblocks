@@ -10,6 +10,8 @@ fn main() {
     let wool = WhiteWool;
     let (textures, version) = wool.extract_data(root);
     println!("RP version: {}", version);
+    let avg = wool.compute_texture_avg_mapping(textures);
+    println!("{}", avg.len());
     return;
 
     let rp_dir = env::args().into_iter().nth(1).unwrap();

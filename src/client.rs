@@ -100,7 +100,7 @@ impl From<ClientJar> for VfsPath {
 }
 
 pub trait TextureGenerator {
-    fn compute_texture_avg_mapping(&self, textures: Vec<Texture>) -> HashMap<Rgba<u8>, RgbaImage>;
+    fn compute_texture_avg_mapping(&self, textures: Vec<Texture>) -> HashMap<u32, RgbaImage>;
 
     /// Convert the raw data of all images within `virt_root` into textures,
     /// and extract the resource pack version from its `version.json`.
@@ -117,7 +117,7 @@ pub trait TextureGenerator {
                     let capacity = md.len as usize;
                     let mut buf = Vec::with_capacity(capacity);
                     let file_size = path.open_file().unwrap().read_to_end(&mut buf).unwrap();
-                    // Want this to always be true to guarantee no re-allocations are made.
+                    // Want this to always be true to guarantee no reallocations are made.
                     assert!(file_size == capacity);
                     let dyn_img = load_from_memory_with_format(&buf, ImageFormat::Png).unwrap();
                     let img = dyn_img.to_rgba8();
@@ -161,7 +161,10 @@ pub trait TextureGenerator {
 
 pub struct WhiteWool;
 impl TextureGenerator for WhiteWool {
-    fn compute_texture_avg_mapping(&self, textures: Vec<Texture>) -> HashMap<Rgba<u8>, RgbaImage> {
+    fn compute_texture_avg_mapping(&self, textures: Vec<Texture>) -> HashMap<u32, RgbaImage> {
+        const RGB_MAX: u32 = 1 << 24;
+        // 2^24 / 16 provide 1M unique colors
+        const DIVISOR: usize = 16;
         let white_wool = textures
             .iter()
             .find(|t| t.path.ends_with("white_wool.png"))
@@ -169,7 +172,26 @@ impl TextureGenerator for WhiteWool {
             .img
             .clone();
         let wool_grayscale = DynamicImage::from(white_wool).to_luma8();
+        let (width, height) = wool_grayscale.dimensions();
+        assert!(width == 16 && height == 16);
 
-        todo!()
+        (0..RGB_MAX)
+            .into_par_iter()
+            .rev()
+            .step_by(DIVISOR)
+            .map(|idx| {
+                let mut rgba = Rgba::from(idx.to_be_bytes());
+                let mut wool_img = RgbaImage::new(width, height);
+                for (x, y, pixel) in wool_grayscale.enumerate_pixels() {
+                    let luminance = pixel[0] as f64;
+                    rgba[0] = ((luminance / 255.0) * (rgba[0] as f64)).round() as u8;
+                    rgba[1] = ((luminance / 255.0) * (rgba[1] as f64)).round() as u8;
+                    rgba[2] = ((luminance / 255.0) * (rgba[2] as f64)).round() as u8;
+                    rgba[3] = u8::MAX;
+                    wool_img.put_pixel(x, y, rgba);
+                }
+                (idx, wool_img)
+            })
+            .collect()
     }
 }
