@@ -114,15 +114,11 @@ pub trait TextureGenerator {
                 let is_file = md.file_type == VfsFileType::File;
                 let is_png = path.as_str().ends_with(".png");
                 (is_file && is_png).then(|| {
-                    // As ugly as it is this seems to be the best way
-                    // to convert `VfsPath` files into buffers.
-                    let buf = {
-                        let capacity = md.len as usize;
-                        let mut writer = vec![0; capacity];
-                        let mut reader = path.open_file().unwrap();
-                        copy(&mut reader, &mut writer).unwrap();
-                        writer
-                    };
+                    let capacity = md.len as usize;
+                    let mut buf = Vec::with_capacity(capacity);
+                    let file_size = path.open_file().unwrap().read_to_end(&mut buf).unwrap();
+                    // Want this to always be true to guarantee no re-allocations are made.
+                    assert!(file_size == capacity);
                     let dyn_img = load_from_memory_with_format(&buf, ImageFormat::Png).unwrap();
                     let img = dyn_img.to_rgba8();
                     let path = Utf8PathBuf::from(path.as_str());
@@ -163,9 +159,17 @@ pub trait TextureGenerator {
     }
 }
 
-pub struct Wool;
-impl TextureGenerator for Wool {
+pub struct WhiteWool;
+impl TextureGenerator for WhiteWool {
     fn compute_texture_avg_mapping(&self, textures: Vec<Texture>) -> HashMap<Rgba<u8>, RgbaImage> {
+        let white_wool = textures
+            .iter()
+            .find(|t| t.path.ends_with("white_wool.png"))
+            .unwrap()
+            .img
+            .clone();
+        let wool_grayscale = DynamicImage::from(white_wool).to_luma8();
+
         todo!()
     }
 }
