@@ -14,10 +14,10 @@ pub use impls::*;
 pub type HashMap<K, V> = std::collections::HashMap<K, V, foldhash::quality::RandomState>;
 
 const MANIFEST_URL: &str = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
-/// Directories which will have their textures replaced.
-const TARGET_DIR: &[&str] = &["/block/", "/entity/", "/item/", "/trims/"];
 const PNG_EXT: &str = ".png";
 const SIZE: u32 = 16;
+/// Directories which will have their textures replaced.
+const TARGET_DIR: &[&str] = &["/block/", "/entity/", "/item/", "/trims/"];
 
 pub struct Texture {
     img: RgbaImage,
