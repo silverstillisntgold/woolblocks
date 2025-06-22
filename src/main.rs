@@ -10,12 +10,12 @@ fn main() {
     let cj = ClientJar::new_release();
     cj.print_json_data();
     let root = cj.into_virt_mem();
-    let wool = SingleTexture::new("white_wool.png", 8);
+    let wool = SingleTexture::new("white_wool", 8);
     let (textures, version) = wool.extract_data(root);
     println!("RP version: {}", version);
     let map = wool.compute_texture_avg_map(&textures);
     println!("{}", map.len());
-    wool.write("", textures, map);
+    wool.write("tmp", textures, map);
     //let v = map.into_values().collect::<Vec<_>>();
     //dump_textures(v);
     return;

@@ -19,26 +19,33 @@ impl<'a> SingleTexture<'a> {
 
 impl<'a> TextureGenerator for SingleTexture<'a> {
     fn compute_texture_avg_map(&self, textures: &[Texture]) -> HashMap<Rgba<u8>, RgbaImage> {
-        let lookup = self
-            .texture_name
-            .split_once('.')
-            .map(|(prefix, _)| prefix)
-            .unwrap_or(self.texture_name);
         let lookup = {
-            let mut tmp = String::with_capacity(lookup.len() + PNG_EXT.len());
-            tmp.push_str(lookup);
+            let file_name = self
+                .texture_name
+                .split_once('.')
+                .map(|(prefix, _)| prefix)
+                .unwrap_or(self.texture_name);
+            let mut tmp = String::with_capacity(file_name.len() + PNG_EXT.len());
+            tmp.push_str(file_name);
             tmp.push_str(PNG_EXT);
             tmp
         };
-        let old_block = textures
+        let old_block = &textures
             .into_iter()
             .find(|t| t.path.ends_with(&lookup))
             .unwrap()
-            .img
-            .clone();
-        let (width, height) = old_block.dimensions();
-        assert!(width == SIZE && height == SIZE);
-
+            .img;
+        let width = old_block.width();
+        let height = old_block.height();
+        assert!(
+            width == SIZE && height == SIZE,
+            "the source texture must be {}x{}, '{}' is {}x{}",
+            SIZE,
+            SIZE,
+            lookup,
+            width,
+            height
+        );
         rgb_iter(self.resolution)
             .map(|(r, g, b)| {
                 let rgba_src = Rgba::from([r, g, b, u8::MAX]);
