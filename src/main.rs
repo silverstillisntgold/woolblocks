@@ -15,7 +15,8 @@ fn main() {
     println!("RP version: {}", version);
     let map = wool.compute_texture_avg_map(&textures);
     println!("{}", map.len());
-    let v = map.into_values().collect::<Vec<_>>();
+    wool.write("", textures, map);
+    //let v = map.into_values().collect::<Vec<_>>();
     //dump_textures(v);
     return;
 
@@ -24,7 +25,6 @@ fn main() {
         .into_iter()
         .nth(2)
         .unwrap_or("pixelized_wool".to_string());
-    woolblocks::generate_texture_pack(rp_dir.into(), new_pack_name);
 }
 
 fn dump_textures(mut textures: Vec<RgbaImage>) {
