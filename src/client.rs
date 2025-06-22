@@ -185,7 +185,7 @@ impl TextureGenerator for WhiteWool {
                 let rgba_src = Rgba::from((idx | MASK).to_le_bytes());
                 let mut new_wool = RgbaImage::new(width, height);
                 for (x, y, pixel) in white_wool.enumerate_pixels() {
-                    let luminance = pixel.to_luma_alpha()[0] as f64;
+                    let luminance = pixel.to_luma_alpha()[0] as f64 / (u8::MAX as f64);
                     let mut new_pixel = rgba_src.clone();
                     for i in 0..(new_pixel.0.len() - 1) {
                         let new_val = new_pixel[i] as f64 * luminance;
