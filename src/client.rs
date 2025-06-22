@@ -1,5 +1,5 @@
-use crate::TARGET_DIR;
 use crate::manifest::{Version, get_client_jar_as_bytes};
+use crate::{PNG_EXT, TARGET_DIR};
 use std::io::{Cursor, copy};
 use vfs::{MemoryFS, VfsPath};
 use zip::ZipArchive;
@@ -72,7 +72,7 @@ impl From<ClientJar> for VfsPath {
                 // Strings are just simpler to work with here.
                 .map(|path| path.into_os_string().into_string().unwrap())
                 .filter(|path| {
-                    let is_png = path.ends_with(".png");
+                    let is_png = path.ends_with(PNG_EXT);
                     let is_in_target_dir = TARGET_DIR
                         .into_iter()
                         .any(|target_dir| path.contains(target_dir));

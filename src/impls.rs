@@ -1,47 +1,58 @@
 use crate::generator::TextureGenerator;
-use crate::*;
+use crate::{HashMap, PNG_EXT, SIZE, Texture, rgb_iter};
 use image::*;
 
 pub struct SingleTexture<'a> {
+    resolution: usize,
     texture_name: &'a str,
 }
 
 impl<'a> SingleTexture<'a> {
-    pub fn new(texture_name: &'a str) -> Self {
-        Self { texture_name }
+    pub fn new(texture_name: &'a str, resolution: usize) -> Self {
+        let resolution = resolution.next_power_of_two().clamp(2, 16);
+        Self {
+            resolution,
+            texture_name,
+        }
     }
 }
 
 impl<'a> TextureGenerator for SingleTexture<'a> {
     fn compute_texture_avg_map(&self, textures: &[Texture]) -> HashMap<Rgba<u8>, RgbaImage> {
-        const STEP: usize = 8;
-        let white_wool = textures
+        let lookup = self
+            .texture_name
+            .split_once('.')
+            .map(|(prefix, _)| prefix)
+            .unwrap_or(self.texture_name);
+        let lookup = {
+            let mut tmp = String::with_capacity(lookup.len() + PNG_EXT.len());
+            tmp.push_str(lookup);
+            tmp.push_str(PNG_EXT);
+            tmp
+        };
+        let old_block = textures
             .into_iter()
-            .find(|t| t.path.ends_with(self.texture_name))
+            .find(|t| t.path.ends_with(&lookup))
             .unwrap()
             .img
             .clone();
-        let (width, height) = white_wool.dimensions();
+        let (width, height) = old_block.dimensions();
         assert!(width == SIZE && height == SIZE);
 
-        (0..u8::MAX)
-            .rev()
-            .step_by(STEP)
-            .flat_map(move |r| (0..u8::MAX).rev().step_by(STEP).map(move |g| (r, g)))
-            .flat_map(move |(r, g)| (0..u8::MAX).rev().step_by(STEP).map(move |b| (r, g, b)))
+        rgb_iter(self.resolution)
             .map(|(r, g, b)| {
                 let rgba_src = Rgba::from([r, g, b, u8::MAX]);
-                let mut new_wool = RgbaImage::new(width, height);
-                for (x, y, pixel) in white_wool.enumerate_pixels() {
+                let mut new_block = RgbaImage::new(width, height);
+                for (x, y, pixel) in old_block.enumerate_pixels() {
                     let luminance = pixel.to_luma_alpha()[0] as f64 / (u8::MAX as f64);
                     let mut new_pixel = rgba_src.clone();
                     for i in 0..(new_pixel.0.len() - 1) {
                         let new_val = new_pixel[i] as f64 * luminance;
                         new_pixel[i] = new_val.round() as u8;
                     }
-                    new_wool.put_pixel(x, y, new_pixel);
+                    new_block.put_pixel(x, y, new_pixel);
                 }
-                (rgba_src, new_wool)
+                (rgba_src, new_block)
             })
             .collect()
     }

@@ -1,5 +1,4 @@
-use crate::HashMap;
-use crate::{SIZE, Texture};
+use crate::{HashMap, PNG_EXT, SIZE, Texture};
 use camino::Utf8PathBuf;
 use image::codecs::png::*;
 use image::*;
@@ -28,7 +27,7 @@ pub trait TextureGenerator {
             .filter_map(|path| {
                 let md = path.metadata().unwrap();
                 let is_file = md.file_type == VfsFileType::File;
-                let is_png = path.as_str().ends_with(".png");
+                let is_png = path.as_str().ends_with(PNG_EXT);
                 (is_file && is_png).then(|| {
                     let capacity = md.len as usize;
                     let mut buf = Vec::with_capacity(capacity);
