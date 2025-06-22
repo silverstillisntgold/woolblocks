@@ -164,6 +164,7 @@ impl TextureGenerator for WhiteWool {
     fn compute_texture_avg_map(&self, textures: &[Texture]) -> HashMap<Rgba<u8>, RgbaImage> {
         /// Amount of RGB colors composed from `u8` values.
         const RGB: u32 = 1 << (u8::BITS * 3);
+        /// To ensure alpha channel defaults to `u8::MAX`.
         const MASK: u32 = !(RGB - 1);
         /// 2^24 / 16 provides 1M unique RGB colors.
         const DIVISOR: usize = 16;
@@ -173,8 +174,7 @@ impl TextureGenerator for WhiteWool {
             .unwrap()
             .img
             .clone();
-        let wool_grayscale = DynamicImage::from(white_wool).to_luma_alpha32f();
-        let (width, height) = wool_grayscale.dimensions();
+        let (width, height) = white_wool.dimensions();
         assert!(width == SIZE && height == SIZE);
 
         (0..RGB)
@@ -182,18 +182,18 @@ impl TextureGenerator for WhiteWool {
             .rev()
             .step_by(DIVISOR)
             .map(|idx| {
-                let rbga_base = Rgba::from((idx | MASK).to_le_bytes());
-                let mut rgba = rbga_base.clone();
-                let mut wool_img = RgbaImage::new(width, height);
-                for (x, y, pixel) in wool_grayscale.enumerate_pixels() {
-                    let luminance = pixel[0];
-                    for i in 0..3 {}
-                    rgba[0] = (luminance * (rgba[0] as f32)).round() as u8;
-                    rgba[1] = (luminance * (rgba[1] as f32)).round() as u8;
-                    rgba[2] = (luminance * (rgba[2] as f32)).round() as u8;
-                    wool_img.put_pixel(x, y, rgba);
+                let rgba_src = Rgba::from((idx | MASK).to_le_bytes());
+                let mut new_wool = RgbaImage::new(width, height);
+                for (x, y, pixel) in white_wool.enumerate_pixels() {
+                    let luminance = pixel.to_luma_alpha()[0] as f64;
+                    let mut new_pixel = rgba_src.clone();
+                    for i in 0..(new_pixel.0.len() - 1) {
+                        let new_val = new_pixel[i] as f64 * luminance;
+                        new_pixel[i] = new_val.round() as u8;
+                    }
+                    new_wool.put_pixel(x, y, new_pixel);
                 }
-                (rbga_base, wool_img)
+                (rgba_src, new_wool)
             })
             .collect()
     }
