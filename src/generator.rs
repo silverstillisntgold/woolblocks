@@ -4,6 +4,7 @@ use image::codecs::png::*;
 use image::*;
 use rayon::prelude::*;
 use std::fs;
+use std::num::NonZeroUsize;
 use vfs::{VfsFileType, VfsPath};
 
 #[inline]
@@ -15,6 +16,8 @@ fn find_distance(a: &Rgba<u8>, b: &Rgba<u8>) -> i64 {
 }
 
 pub trait TextureGenerator {
+    fn resolution(&self) -> Option<NonZeroUsize>;
+
     fn compute_texture_avg_map(&self, textures: &[Texture]) -> HashMap<Rgba<u8>, RgbaImage>;
 
     /// Convert the raw data of all images within `virt_root` into textures,
@@ -78,8 +81,9 @@ pub trait TextureGenerator {
         textures: Vec<Texture>,
         pixel_map: HashMap<Rgba<u8>, RgbaImage>,
     ) {
+        // Faster than searching a HashMap.
+        let pixel_map_flap = pixel_map.keys().cloned().collect::<Vec<_>>();
         textures.into_par_iter().for_each(|texture| {
-            //println!("{}", texture.path.file_name().unwrap());
             let old_width = texture.img.width();
             let old_height = texture.img.height();
             let new_width = old_width * SIZE;
@@ -91,9 +95,8 @@ pub trait TextureGenerator {
                     let old_pixel = texture.img.get_pixel(x, y);
                     // Find pixel with smallest distance that we can use in
                     // our texture lookup table.
-                    let new_pixel = pixel_map
+                    let new_pixel = pixel_map_flap
                         .par_iter()
-                        .map(|(key, _)| key)
                         .min_by_key(|pixel| find_distance(pixel, old_pixel))
                         .unwrap();
                     // Lookup closest valid texture.

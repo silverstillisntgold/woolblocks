@@ -44,7 +44,7 @@ impl ClientJar {
             .walk_dir()
             .unwrap()
             .map(Result::unwrap)
-            .find(|path| path.as_str().ends_with("version.json"))
+            .find(|path| path.as_str().ends_with(VERSION_JSON))
             .unwrap()
             .read_to_string()
             .unwrap();

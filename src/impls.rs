@@ -1,6 +1,7 @@
 use crate::generator::TextureGenerator;
 use crate::{HashMap, PNG_EXT, SIZE, Texture, rgb_iter};
 use image::*;
+use std::num::NonZeroUsize;
 
 pub struct SingleTexture<'a> {
     resolution: usize,
@@ -18,6 +19,10 @@ impl<'a> SingleTexture<'a> {
 }
 
 impl<'a> TextureGenerator for SingleTexture<'a> {
+    fn resolution(&self) -> Option<NonZeroUsize> {
+        NonZeroUsize::new(self.resolution)
+    }
+
     fn compute_texture_avg_map(&self, textures: &[Texture]) -> HashMap<Rgba<u8>, RgbaImage> {
         let lookup = {
             let file_name = self
@@ -48,19 +53,33 @@ impl<'a> TextureGenerator for SingleTexture<'a> {
         );
         rgb_iter(self.resolution)
             .map(|(r, g, b)| {
-                let rgba_src = Rgba::from([r, g, b, u8::MAX]);
                 let mut new_block = RgbaImage::new(SIZE, SIZE);
                 for (x, y, pixel) in old_block.enumerate_pixels() {
-                    let luminance = pixel.to_luma_alpha()[0] as f64 / (u8::MAX as f64);
-                    let mut new_pixel = rgba_src.clone();
-                    for i in 0..(new_pixel.0.len() - 1) {
-                        let new_val = new_pixel[i] as f64 * luminance;
-                        new_pixel[i] = new_val.round() as u8;
-                    }
+                    let new_pixel = recolor_pixel(pixel, r, g, b);
                     new_block.put_pixel(x, y, new_pixel);
                 }
-                (rgba_src, new_block)
+                (Rgba::from([r, g, b, u8::MAX]), new_block)
             })
             .collect()
     }
+}
+
+const U8_MAX_F64: f64 = u8::MAX as f64;
+
+fn calculate_luminance(pixel: &Rgba<u8>) -> f64 {
+    let r = pixel[0] as f64 / U8_MAX_F64;
+    let g = pixel[1] as f64 / U8_MAX_F64;
+    let b = pixel[2] as f64 / U8_MAX_F64;
+    // Rec. 709
+    (0.2126 * r) + (0.7152 * g) + (0.0722 * b)
+}
+
+fn recolor_pixel(src_pixel: &Rgba<u8>, r: u8, g: u8, b: u8) -> Rgba<u8> {
+    let luminance = calculate_luminance(src_pixel);
+    let r = (r as f64 * luminance).round().clamp(0.0, U8_MAX_F64) as u8;
+    let g = (g as f64 * luminance).round().clamp(0.0, U8_MAX_F64) as u8;
+    let b = (b as f64 * luminance).round().clamp(0.0, U8_MAX_F64) as u8;
+    // The alpha channel is always maxed out because opacity should be deteremined
+    // exclusively by the block whose texture is being replaced.
+    Rgba::from([r, g, b, u8::MAX])
 }
