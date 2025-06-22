@@ -1,7 +1,6 @@
 use crate::generator::TextureGenerator;
-use crate::{HashMap, PNG_EXT, SIZE, Texture, rgb_iter};
+use crate::{KdTree, PNG_EXT, SIZE, Texture, rgb_iter};
 use image::*;
-use std::num::NonZeroUsize;
 
 pub struct SingleTexture<'a> {
     resolution: usize,
@@ -10,7 +9,7 @@ pub struct SingleTexture<'a> {
 
 impl<'a> SingleTexture<'a> {
     pub fn new(texture_name: &'a str, resolution: usize) -> Self {
-        let resolution = resolution.next_power_of_two().clamp(2, 16);
+        let resolution = resolution.clamp(2, 16);
         Self {
             resolution,
             texture_name,
@@ -19,11 +18,7 @@ impl<'a> SingleTexture<'a> {
 }
 
 impl<'a> TextureGenerator for SingleTexture<'a> {
-    fn resolution(&self) -> Option<NonZeroUsize> {
-        NonZeroUsize::new(self.resolution)
-    }
-
-    fn compute_texture_avg_map(&self, textures: &[Texture]) -> HashMap<Rgba<u8>, RgbaImage> {
+    fn compute_texture_avg_map(&self, textures: &[Texture]) -> (KdTree, Vec<RgbaImage>) {
         let lookup = {
             let file_name = self
                 .texture_name
@@ -51,16 +46,18 @@ impl<'a> TextureGenerator for SingleTexture<'a> {
             width,
             height
         );
-        rgb_iter(self.resolution)
+        let (keys_src, values) = rgb_iter(self.resolution)
             .map(|(r, g, b)| {
                 let mut new_block = RgbaImage::new(SIZE, SIZE);
                 for (x, y, pixel) in old_block.enumerate_pixels() {
                     let new_pixel = recolor_pixel(pixel, r, g, b);
                     new_block.put_pixel(x, y, new_pixel);
                 }
-                (Rgba::from([r, g, b, u8::MAX]), new_block)
+                ([r as f64, g as f64, b as f64], new_block)
             })
-            .collect()
+            .collect::<(Vec<_>, Vec<_>)>();
+        let keys = KdTree::new_from_slice(&keys_src);
+        (keys, values)
     }
 }
 

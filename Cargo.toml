@@ -5,8 +5,8 @@ edition = "2024"
 
 [dependencies]
 camino = "1.1"
-foldhash = "0.1"
 image = { version = "0.25", default-features = false, features = ["png"] }
+kiddo = { version = "5.1", default-features = false }
 rayon = "1.10"
 reqwest = { version = "0.12", features = ["blocking", "json"] }
 serde = { version = "1", features = ["derive"] }

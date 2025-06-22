@@ -1,24 +1,14 @@
-use crate::{HashMap, PNG_EXT, SIZE, Texture, VERSION_JSON};
+use crate::{KdTree, PNG_EXT, SIZE, Texture, VERSION_JSON};
 use camino::Utf8PathBuf;
 use image::codecs::png::*;
 use image::*;
 use rayon::prelude::*;
 use std::fs;
-use std::num::NonZeroUsize;
 use vfs::{VfsFileType, VfsPath};
 
-#[inline]
-fn find_distance(a: &Rgba<u8>, b: &Rgba<u8>) -> i64 {
-    let dr = a.0[0] as i64 - b.0[0] as i64;
-    let dg = a.0[1] as i64 - b.0[1] as i64;
-    let db = a.0[2] as i64 - b.0[2] as i64;
-    dr * dr + dg * dg + db * db
-}
-
 pub trait TextureGenerator {
-    fn resolution(&self) -> Option<NonZeroUsize>;
-
-    fn compute_texture_avg_map(&self, textures: &[Texture]) -> HashMap<Rgba<u8>, RgbaImage>;
+    /// The returned [`KdTree`] contains points which map to indexes of the returned `Vec`.
+    fn compute_texture_avg_map(&self, textures: &[Texture]) -> (KdTree, Vec<RgbaImage>);
 
     /// Convert the raw data of all images within `virt_root` into textures,
     /// and extract the resource pack version from its `version.json`.
@@ -79,10 +69,9 @@ pub trait TextureGenerator {
         &self,
         target_dir: &str,
         textures: Vec<Texture>,
-        pixel_map: HashMap<Rgba<u8>, RgbaImage>,
+        keys: KdTree,
+        values: Vec<RgbaImage>,
     ) {
-        // Faster than searching a HashMap.
-        let pixel_map_flap = pixel_map.keys().cloned().collect::<Vec<_>>();
         textures.into_par_iter().for_each(|texture| {
             let old_width = texture.img.width();
             let old_height = texture.img.height();
@@ -95,12 +84,15 @@ pub trait TextureGenerator {
                     let old_pixel = texture.img.get_pixel(x, y);
                     // Find pixel with smallest distance that we can use in
                     // our texture lookup table.
-                    let new_pixel = pixel_map_flap
-                        .par_iter()
-                        .min_by_key(|pixel| find_distance(pixel, old_pixel))
-                        .unwrap();
+                    let new_pixel_idx = keys
+                        .nearest_one::<kiddo::Manhattan>(&[
+                            old_pixel[0] as f64,
+                            old_pixel[1] as f64,
+                            old_pixel[2] as f64,
+                        ])
+                        .item;
                     // Lookup closest valid texture.
-                    let closest_block = pixel_map.get(new_pixel).unwrap();
+                    let closest_block = &values[new_pixel_idx];
                     let x_offset = x * SIZE;
                     let y_offset = y * SIZE;
                     // Iterate over sub-pixel group.

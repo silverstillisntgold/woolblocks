@@ -1,81 +1,20 @@
-#![allow(unused)]
-
-use image::codecs::png::*;
-use image::*;
-use rayon::prelude::*;
-use std::{env, fs};
+//use std::env;
 use woolblocks::*;
 
 fn main() {
-    /*for i in [2_usize, 4, 8] {
-        print!("{} -- sorted: ", i);
-        let x = rgb_iter(i)
-            .map(|(r, g, b)| {
-                let tmp = Rgba::from([r, g, b, u8::MAX]);
-                unsafe { std::mem::transmute::<_, u32>(tmp) }
-            })
-            .collect::<Vec<_>>();
-        println!("{}, {}", x.is_sorted(), x.len());
-    }
-    return;*/
-
     let cj = ClientJar::new_release();
     cj.print_json_data();
     let root = cj.into_virt_mem();
-    let wool = SingleTexture::new("white_wool", 2);
+    let wool = SingleTexture::new("iron_block", 2);
     let (textures, version) = wool.extract_data(root);
     println!("RP version: {}", version);
-    let map = wool.compute_texture_avg_map(&textures);
-    println!("{}", map.len());
-    wool.write("tmp", textures, map);
-    //let v = map.into_values().collect::<Vec<_>>();
-    //dump_textures(v);
-    return;
+    let (keys, values) = wool.compute_texture_avg_map(&textures);
+    println!("{} -- {}", keys.size(), values.len());
+    wool.write("tmp", textures, keys, values);
 
-    let rp_dir = env::args().into_iter().nth(1).unwrap();
+    /*let rp_dir = env::args().into_iter().nth(1).unwrap();
     let new_pack_name = env::args()
         .into_iter()
         .nth(2)
-        .unwrap_or("pixelized_wool".to_string());
-}
-
-fn dump_textures(mut textures: Vec<RgbaImage>) {
-    const DIR: &str = "tmp_imgs/";
-    if fs::exists(DIR).unwrap() {
-        fs::remove_dir_all(DIR).unwrap();
-    }
-    fs::create_dir(DIR).unwrap();
-    textures.sort_unstable_by(|a, b| {
-        let a = find_average(&a) as f32;
-        let b = find_average(&b) as f32;
-        a.total_cmp(&b)
-    });
-    textures
-        .into_par_iter()
-        .enumerate()
-        .for_each(|(i, texture)| {
-            let path = DIR.to_string() + &i.to_string() + ".png";
-            let f = fs::File::create_new(path).unwrap();
-            let enc = PngEncoder::new_with_quality(f, CompressionType::Best, FilterType::default());
-            texture.write_with_encoder(enc).unwrap();
-        });
-}
-
-pub fn find_average(image: &RgbaImage) -> f32 {
-    let (width, height) = image.dimensions();
-    let num_pixels = (width as f32) * (height as f32);
-    // Sum up each pixel's luminance (ignoring alpha), normalized to [0.0, 1.0].
-    let total_lum: f32 = image
-        .pixels()
-        .map(|px| {
-            let channels = px.channels();
-            let r = channels[0] as f32;
-            let g = channels[1] as f32;
-            let b = channels[2] as f32;
-            // Rec. 601 luma, then normalize by 255
-            (0.299 * r + 0.587 * g + 0.114 * b) / 255.0
-        })
-        .sum();
-
-    total_lum / num_pixels
+        .unwrap_or("pixelized_wool".to_string());*/
 }

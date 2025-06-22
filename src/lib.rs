@@ -1,3 +1,9 @@
+/*!
+Documentation goes here.
+*/
+
+//#![deny(missing_docs)]
+
 mod client;
 mod generator;
 mod impls;
@@ -11,7 +17,7 @@ pub use client::ClientJar;
 pub use generator::TextureGenerator;
 pub use impls::*;
 
-pub type HashMap<K, V> = std::collections::HashMap<K, V, foldhash::quality::RandomState>;
+pub type KdTree = kiddo::immutable::float::kdtree::ImmutableKdTree<f64, usize, 3, 32>;
 
 const MANIFEST_URL: &str = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
 const PNG_EXT: &str = ".png";
