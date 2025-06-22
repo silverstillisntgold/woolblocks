@@ -167,7 +167,7 @@ impl TextureGenerator for WhiteWool {
         /// To ensure alpha channel defaults to `u8::MAX`.
         const MASK: u32 = !(RGB - 1);
         /// 2^24 / 16 provides 1M unique RGB colors.
-        const DIVISOR: usize = 16;
+        const DIVISOR: usize = 1 << 12;
         let white_wool = textures
             .into_iter()
             .find(|t| t.path.ends_with("white_wool.png"))

@@ -14,4 +14,4 @@ Cargo.lock
 *.pdb
 
 # where da wool at
-.wool
+*tmp*/
