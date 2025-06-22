@@ -10,7 +10,7 @@ fn main() {
     let cj = ClientJar::new_release();
     cj.print_json_data();
     let root = cj.into_virt_mem();
-    let wool = WhiteWool;
+    let wool = SingleTexture::new("white_wool.png");
     let (textures, version) = wool.extract_data(root);
     println!("RP version: {}", version);
     let map = wool.compute_texture_avg_map(&textures);

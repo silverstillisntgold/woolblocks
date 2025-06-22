@@ -2,13 +2,22 @@ use crate::generator::TextureGenerator;
 use crate::*;
 use image::*;
 
-pub struct WhiteWool;
-impl TextureGenerator for WhiteWool {
+pub struct SingleTexture<'a> {
+    texture_name: &'a str,
+}
+
+impl<'a> SingleTexture<'a> {
+    pub fn new(texture_name: &'a str) -> Self {
+        Self { texture_name }
+    }
+}
+
+impl<'a> TextureGenerator for SingleTexture<'a> {
     fn compute_texture_avg_map(&self, textures: &[Texture]) -> HashMap<Rgba<u8>, RgbaImage> {
         const STEP: usize = 8;
         let white_wool = textures
             .into_iter()
-            .find(|t| t.path.ends_with("cobblestone.png"))
+            .find(|t| t.path.ends_with(self.texture_name))
             .unwrap()
             .img
             .clone();
