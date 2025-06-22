@@ -5,6 +5,7 @@ use image::codecs::png::*;
 use image::*;
 use rayon::prelude::*;
 use std::collections::HashMap as HashMapCore;
+use std::fs;
 use std::io::{Cursor, copy};
 use vfs::{MemoryFS, VfsFileType, VfsPath};
 use zip::ZipArchive;
@@ -119,8 +120,9 @@ pub trait TextureGenerator {
                     let file_size = path.open_file().unwrap().read_to_end(&mut buf).unwrap();
                     // Want this to always be true to guarantee no reallocations are made.
                     assert!(file_size == capacity);
-                    let dyn_img = load_from_memory_with_format(&buf, ImageFormat::Png).unwrap();
-                    let img = dyn_img.to_rgba8();
+                    let img = load_from_memory_with_format(&buf, ImageFormat::Png)
+                        .unwrap()
+                        .to_rgba8();
                     let path = Utf8PathBuf::from(path.as_str());
                     Texture { img, path }
                 })
@@ -154,20 +156,67 @@ pub trait TextureGenerator {
         (textures, resource_pack_version)
     }
 
-    fn write(&self, textures: Vec<Texture>, target_dir: &str) {
-        todo!()
+    fn write(
+        &self,
+        target_dir: &str,
+        textures: Vec<Texture>,
+        pixel_map: HashMap<Rgba<u8>, RgbaImage>,
+    ) {
+        textures.into_par_iter().for_each(|texture| {
+            let old_width = texture.img.width();
+            let old_height = texture.img.height();
+            let new_width = old_width * SIZE;
+            let new_height = old_height * SIZE;
+            let mut new_img = RgbaImage::new(new_width, new_height);
+            for x in 0..old_width {
+                for y in 0..old_height {
+                    // Get current pixel from old texture.
+                    let old_pixel = texture.img.get_pixel(x, y);
+                    // Find pixel with smallest distance that we can use in
+                    // our texture lookup table.
+                    let new_pixel = pixel_map
+                        .par_iter()
+                        .map(|(key, _)| key)
+                        .min_by_key(|pixel| find_distance(pixel, old_pixel))
+                        .unwrap();
+                    // Lookup closest valid texture.
+                    let closest_block = pixel_map.get(new_pixel).unwrap();
+                    let x_offset = x * SIZE;
+                    let y_offset = y * SIZE;
+                    // Iterate over sub-pixel group.
+                    for dx in 0..SIZE {
+                        for dy in 0..SIZE {
+                            let mut pixel = closest_block.get_pixel(dx, dy).clone();
+                            if old_pixel.0[3] == 0 {
+                                for val in &mut pixel.0 {
+                                    *val = 0;
+                                }
+                            } else {
+                                pixel.0[3] = old_pixel.0[3];
+                            }
+                            new_img.put_pixel(x_offset + dx, y_offset + dy, pixel);
+                        }
+                    }
+                }
+            }
+            let f = fs::File::create(texture.path).unwrap();
+            let enc = PngEncoder::new_with_quality(f, CompressionType::Best, FilterType::default());
+            new_img.write_with_encoder(enc).unwrap();
+        });
     }
+}
+
+fn find_distance(a: &Rgba<u8>, b: &Rgba<u8>) -> i64 {
+    let dr = a.0[0] as i64 - b.0[0] as i64;
+    let dg = a.0[1] as i64 - b.0[1] as i64;
+    let db = a.0[2] as i64 - b.0[2] as i64;
+    dr * dr + dg * dg + db * db
 }
 
 pub struct WhiteWool;
 impl TextureGenerator for WhiteWool {
     fn compute_texture_avg_map(&self, textures: &[Texture]) -> HashMap<Rgba<u8>, RgbaImage> {
-        /// Amount of RGB colors composed from `u8` values.
-        const RGB: u32 = 1 << (u8::BITS * 3);
-        /// To ensure alpha channel defaults to `u8::MAX`.
-        const MASK: u32 = !(RGB - 1);
-        /// 2^24 / 16 provides 1M unique RGB colors.
-        const DIVISOR: usize = 1 << 12;
+        const STEP: usize = 3;
         let white_wool = textures
             .into_iter()
             .find(|t| t.path.ends_with("white_wool.png"))
@@ -177,12 +226,13 @@ impl TextureGenerator for WhiteWool {
         let (width, height) = white_wool.dimensions();
         assert!(width == SIZE && height == SIZE);
 
-        (0..RGB)
-            .into_par_iter()
+        (0..u8::MAX)
             .rev()
-            .step_by(DIVISOR)
-            .map(|idx| {
-                let rgba_src = Rgba::from((idx | MASK).to_le_bytes());
+            .step_by(STEP)
+            .flat_map(move |r| (0..u8::MAX).rev().step_by(STEP).map(move |g| (r, g)))
+            .flat_map(move |(r, g)| (0..u8::MAX).rev().step_by(STEP).map(move |b| (r, g, b)))
+            .map(|(r, g, b)| {
+                let rgba_src = Rgba::from([r, g, b, u8::MAX]);
                 let mut new_wool = RgbaImage::new(width, height);
                 for (x, y, pixel) in white_wool.enumerate_pixels() {
                     let luminance = pixel.to_luma_alpha()[0] as f64 / (u8::MAX as f64);
