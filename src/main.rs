@@ -4,7 +4,7 @@ use image::codecs::png::*;
 use image::*;
 use rayon::prelude::*;
 use std::{env, fs};
-use woolblocks::client::*;
+use woolblocks::*;
 
 fn main() {
     let cj = ClientJar::new_release();
