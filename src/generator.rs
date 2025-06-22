@@ -1,4 +1,4 @@
-use crate::{HashMap, PNG_EXT, SIZE, Texture};
+use crate::{HashMap, PNG_EXT, SIZE, Texture, VERSION_JSON};
 use camino::Utf8PathBuf;
 use image::codecs::png::*;
 use image::*;
@@ -30,10 +30,12 @@ pub trait TextureGenerator {
                 let is_png = path.as_str().ends_with(PNG_EXT);
                 (is_file && is_png).then(|| {
                     let capacity = md.len as usize;
+                    // It's very important that the length of `buf` starts at 0, since
+                    // `read_to_end` appends data instead of overwriting it.
                     let mut buf = Vec::with_capacity(capacity);
                     let file_size = path.open_file().unwrap().read_to_end(&mut buf).unwrap();
-                    // Want this to always be true to guarantee no reallocations are made.
-                    assert!(file_size == capacity);
+                    // This being true guarantees no reallocations are made.
+                    assert_eq!(capacity, file_size);
                     let img = load_from_memory_with_format(&buf, ImageFormat::Png)
                         .unwrap()
                         .to_rgba8();
@@ -48,7 +50,7 @@ pub trait TextureGenerator {
             .walk_dir()
             .unwrap()
             .map(Result::unwrap)
-            .find(|path| path.as_str().ends_with("version.json"))
+            .find(|path| path.as_str().ends_with(VERSION_JSON))
             .unwrap()
             .read_to_string()
             .unwrap();

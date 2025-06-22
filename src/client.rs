@@ -1,5 +1,5 @@
 use crate::manifest::{Version, get_client_jar_as_bytes};
-use crate::{PNG_EXT, TARGET_DIR};
+use crate::{PNG_EXT, TARGET_DIR, VERSION_JSON};
 use std::io::{Cursor, copy};
 use vfs::{MemoryFS, VfsPath};
 use zip::ZipArchive;
@@ -76,11 +76,9 @@ impl From<ClientJar> for VfsPath {
                     let is_in_target_dir = TARGET_DIR
                         .into_iter()
                         .any(|target_dir| path.contains(target_dir));
-                    let is_version_json = path.ends_with("version.json");
+                    let is_version_json = path.ends_with(VERSION_JSON);
                     (is_png && is_in_target_dir) || is_version_json
                 })
-                // Eliminate some goofy ah textures.
-                .filter(|path| !path.contains("test") && !path.contains("debug"))
             {
                 let path = virt_root.join(path).unwrap();
                 path.parent().create_dir_all().unwrap();

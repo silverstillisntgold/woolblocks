@@ -7,6 +7,18 @@ use std::{env, fs};
 use woolblocks::*;
 
 fn main() {
+    /*for i in [2_usize, 4, 8] {
+        print!("{} -- sorted: ", i);
+        let x = rgb_iter(i)
+            .map(|(r, g, b)| {
+                let tmp = Rgba::from([r, g, b, u8::MAX]);
+                unsafe { std::mem::transmute::<_, u32>(tmp) }
+            })
+            .collect::<Vec<_>>();
+        println!("{}, {}", x.is_sorted(), x.len());
+    }
+    return;*/
+
     let cj = ClientJar::new_release();
     cj.print_json_data();
     let root = cj.into_virt_mem();

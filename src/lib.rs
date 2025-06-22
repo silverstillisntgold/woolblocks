@@ -18,6 +18,7 @@ const PNG_EXT: &str = ".png";
 const SIZE: u32 = 16;
 /// Directories which will have their textures replaced.
 const TARGET_DIR: &[&str] = &["/block/", "/entity/", "/item/", "/trims/"];
+const VERSION_JSON: &str = "version.json";
 
 pub struct Texture {
     img: RgbaImage,
@@ -31,7 +32,7 @@ impl Debug for Texture {
 }
 
 #[inline]
-fn rgb_iter(step: usize) -> impl Iterator<Item = (u8, u8, u8)> {
+pub fn rgb_iter(step: usize) -> impl Iterator<Item = (u8, u8, u8)> {
     (0..=u8::MAX)
         .step_by(step)
         .flat_map(move |r| (0..=u8::MAX).step_by(step).map(move |g| (r, g)))

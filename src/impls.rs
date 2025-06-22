@@ -32,7 +32,7 @@ impl<'a> TextureGenerator for SingleTexture<'a> {
         };
         let old_block = &textures
             .into_iter()
-            .find(|t| t.path.ends_with(&lookup))
+            .find(|t| t.path.as_str().ends_with(&lookup))
             .unwrap()
             .img;
         let width = old_block.width();
@@ -49,7 +49,7 @@ impl<'a> TextureGenerator for SingleTexture<'a> {
         rgb_iter(self.resolution)
             .map(|(r, g, b)| {
                 let rgba_src = Rgba::from([r, g, b, u8::MAX]);
-                let mut new_block = RgbaImage::new(width, height);
+                let mut new_block = RgbaImage::new(SIZE, SIZE);
                 for (x, y, pixel) in old_block.enumerate_pixels() {
                     let luminance = pixel.to_luma_alpha()[0] as f64 / (u8::MAX as f64);
                     let mut new_pixel = rgba_src.clone();
