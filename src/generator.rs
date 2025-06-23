@@ -6,6 +6,8 @@ use rayon::prelude::*;
 use std::fs;
 use vfs::{VfsFileType, VfsPath};
 
+use crate::impls::recolor_pixel;
+
 pub trait TextureGenerator {
     /// The returned [`KdTree`] contains points which map to indexes of the returned `Vec`.
     fn compute_texture_avg_map(&self, textures: &[Texture]) -> KdMap;
@@ -76,6 +78,8 @@ pub trait TextureGenerator {
                 for y in 0..old_height {
                     // Get current pixel from old texture.
                     let old_pixel = texture.img.get_pixel(x, y);
+                    // Find the whole texture whose approximate average color
+                    // is closest to the current pixel.
                     let closest_block = map.get_nearest(&[
                         old_pixel[0] as f64,
                         old_pixel[1] as f64,
@@ -86,15 +90,24 @@ pub trait TextureGenerator {
                     // Iterate over sub-pixel group.
                     for dx in 0..SIZE {
                         for dy in 0..SIZE {
-                            let mut pixel = closest_block.get_pixel(dx, dy).clone();
-                            if old_pixel.0[3] == 0 {
-                                for val in &mut pixel.0 {
-                                    *val = 0;
-                                }
+                            if *old_pixel.0.last().unwrap() != 0 {
+                                let pixel = closest_block.get_pixel(dx, dy).clone();
+                                let _testing = recolor_pixel(
+                                    old_pixel,
+                                    pixel[0],
+                                    pixel[1],
+                                    pixel[2],
+                                    old_pixel[3],
+                                );
+                                //pixel.0[3] = old_pixel.0[3];
+                                new_img.put_pixel(x_offset + dx, y_offset + dy, _testing);
                             } else {
-                                pixel.0[3] = old_pixel.0[3];
+                                new_img.put_pixel(
+                                    x_offset + dx,
+                                    y_offset + dy,
+                                    Rgba::from([0, 0, 0, 0]),
+                                );
                             }
-                            new_img.put_pixel(x_offset + dx, y_offset + dy, pixel);
                         }
                     }
                 }

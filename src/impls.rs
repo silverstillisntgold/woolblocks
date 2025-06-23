@@ -71,7 +71,7 @@ fn calculate_luminance(pixel: &Rgba<u8>) -> f64 {
     (0.2126 * r) + (0.7152 * g) + (0.0722 * b)
 }
 
-fn recolor_pixel(src_pixel: &Rgba<u8>, r: u8, g: u8, b: u8, a: u8) -> Rgba<u8> {
+pub fn recolor_pixel(src_pixel: &Rgba<u8>, r: u8, g: u8, b: u8, a: u8) -> Rgba<u8> {
     let luminance = calculate_luminance(src_pixel);
     let r = (r as f64 * luminance).round().clamp(0.0, U8_MAX_F64) as u8;
     let g = (g as f64 * luminance).round().clamp(0.0, U8_MAX_F64) as u8;
