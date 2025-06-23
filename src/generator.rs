@@ -1,4 +1,4 @@
-use crate::{KdTree, PNG_EXT, SIZE, Texture, VERSION_JSON};
+use crate::{KdMap, PNG_EXT, SIZE, Texture, VERSION_JSON};
 use camino::Utf8PathBuf;
 use image::codecs::png::*;
 use image::*;
@@ -8,7 +8,7 @@ use vfs::{VfsFileType, VfsPath};
 
 pub trait TextureGenerator {
     /// The returned [`KdTree`] contains points which map to indexes of the returned `Vec`.
-    fn compute_texture_avg_map(&self, textures: &[Texture]) -> (KdTree, Vec<RgbaImage>);
+    fn compute_texture_avg_map(&self, textures: &[Texture]) -> KdMap;
 
     /// Convert the raw data of all images within `virt_root` into textures,
     /// and extract the resource pack version from its `version.json`.
@@ -65,13 +65,7 @@ pub trait TextureGenerator {
         (textures, resource_pack_version)
     }
 
-    fn write(
-        &self,
-        target_dir: &str,
-        textures: Vec<Texture>,
-        keys: KdTree,
-        values: Vec<RgbaImage>,
-    ) {
+    fn write(&self, target_dir: &str, textures: Vec<Texture>, map: KdMap) {
         textures.into_par_iter().for_each(|texture| {
             let old_width = texture.img.width();
             let old_height = texture.img.height();
@@ -82,17 +76,11 @@ pub trait TextureGenerator {
                 for y in 0..old_height {
                     // Get current pixel from old texture.
                     let old_pixel = texture.img.get_pixel(x, y);
-                    // Find pixel with smallest distance that we can use in
-                    // our texture lookup table.
-                    let new_pixel_idx = keys
-                        .nearest_one::<kiddo::Manhattan>(&[
-                            old_pixel[0] as f64,
-                            old_pixel[1] as f64,
-                            old_pixel[2] as f64,
-                        ])
-                        .item;
-                    // Lookup closest valid texture.
-                    let closest_block = &values[new_pixel_idx];
+                    let closest_block = map.get_nearest(&[
+                        old_pixel[0] as f64,
+                        old_pixel[1] as f64,
+                        old_pixel[2] as f64,
+                    ]);
                     let x_offset = x * SIZE;
                     let y_offset = y * SIZE;
                     // Iterate over sub-pixel group.

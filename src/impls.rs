@@ -1,5 +1,5 @@
 use crate::generator::TextureGenerator;
-use crate::{KdTree, PNG_EXT, SIZE, Texture, rgb_iter};
+use crate::{KdMap, PNG_EXT, SIZE, Texture, rgb_iter};
 use image::*;
 
 pub struct SingleTexture<'a> {
@@ -18,7 +18,7 @@ impl<'a> SingleTexture<'a> {
 }
 
 impl<'a> TextureGenerator for SingleTexture<'a> {
-    fn compute_texture_avg_map(&self, textures: &[Texture]) -> (KdTree, Vec<RgbaImage>) {
+    fn compute_texture_avg_map(&self, textures: &[Texture]) -> KdMap {
         let lookup = {
             let file_name = self
                 .texture_name
@@ -46,18 +46,18 @@ impl<'a> TextureGenerator for SingleTexture<'a> {
             width,
             height
         );
-        let (keys_src, values) = rgb_iter(self.resolution)
+        rgb_iter(self.resolution)
             .map(|(r, g, b)| {
                 let mut new_block = RgbaImage::new(SIZE, SIZE);
                 for (x, y, pixel) in old_block.enumerate_pixels() {
-                    let new_pixel = recolor_pixel(pixel, r, g, b);
+                    // The alpha channel is always maxed out because opacity should be deteremined
+                    // exclusively by the block whose texture is being replaced.
+                    let new_pixel = recolor_pixel(pixel, r, g, b, u8::MAX);
                     new_block.put_pixel(x, y, new_pixel);
                 }
                 ([r as f64, g as f64, b as f64], new_block)
             })
-            .collect::<(Vec<_>, Vec<_>)>();
-        let keys = KdTree::new_from_slice(&keys_src);
-        (keys, values)
+            .into()
     }
 }
 
@@ -71,12 +71,10 @@ fn calculate_luminance(pixel: &Rgba<u8>) -> f64 {
     (0.2126 * r) + (0.7152 * g) + (0.0722 * b)
 }
 
-fn recolor_pixel(src_pixel: &Rgba<u8>, r: u8, g: u8, b: u8) -> Rgba<u8> {
+fn recolor_pixel(src_pixel: &Rgba<u8>, r: u8, g: u8, b: u8, a: u8) -> Rgba<u8> {
     let luminance = calculate_luminance(src_pixel);
     let r = (r as f64 * luminance).round().clamp(0.0, U8_MAX_F64) as u8;
     let g = (g as f64 * luminance).round().clamp(0.0, U8_MAX_F64) as u8;
     let b = (b as f64 * luminance).round().clamp(0.0, U8_MAX_F64) as u8;
-    // The alpha channel is always maxed out because opacity should be deteremined
-    // exclusively by the block whose texture is being replaced.
-    Rgba::from([r, g, b, u8::MAX])
+    Rgba::from([r, g, b, a])
 }
