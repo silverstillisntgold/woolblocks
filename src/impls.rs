@@ -9,7 +9,7 @@ pub struct SingleTexture<'a> {
 
 impl<'a> SingleTexture<'a> {
     pub fn new(texture_name: &'a str, resolution: usize) -> Self {
-        let resolution = resolution.clamp(2, 16);
+        let resolution = resolution.clamp(1, 8);
         Self {
             resolution,
             texture_name,
@@ -20,15 +20,11 @@ impl<'a> SingleTexture<'a> {
 impl<'a> TextureGenerator for SingleTexture<'a> {
     fn compute_texture_avg_map(&self, textures: &[Texture]) -> KdMap {
         let lookup = {
-            let file_name = self
-                .texture_name
-                .split_once('.')
-                .map(|(prefix, _)| prefix)
-                .unwrap_or(self.texture_name);
-            let mut tmp = String::with_capacity(file_name.len() + PNG_EXT.len());
-            tmp.push_str(file_name);
-            tmp.push_str(PNG_EXT);
-            tmp
+            if !self.texture_name.ends_with(PNG_EXT) {
+                self.texture_name.to_string() + PNG_EXT
+            } else {
+                self.texture_name.to_string()
+            }
         };
         let old_block = &textures
             .into_iter()
