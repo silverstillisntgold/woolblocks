@@ -11,7 +11,7 @@ mod manifest;
 
 use camino::Utf8PathBuf;
 use image::RgbaImage;
-use kiddo::{ImmutableKdTree, Manhattan};
+use kiddo::{ImmutableKdTree, SquaredEuclidean};
 use std::fmt;
 
 pub use client::ClientJar;
@@ -44,13 +44,20 @@ where
 }
 
 impl KdMap {
+    /// Returns the numbers of elements in the backing [`ImmutableKdTree`] and [`Vec`].
     pub fn len(&self) -> usize {
         self.values.len()
     }
 
-    pub fn get_nearest(&self, query: &[f64; DIMENSIONS]) -> &RgbaImage {
-        let index = self.keys.nearest_one::<Manhattan>(query).item as usize;
+    /// Finds the [`RgbaImage`] whose overall color is "closest" to that of `query`.
+    pub fn nearest(&self, query: &[f64; DIMENSIONS]) -> &RgbaImage {
+        let index = self.keys.nearest_one::<SquaredEuclidean>(query).item as usize;
         &self.values[index]
+    }
+
+    /// Provides the backing [`RgbaImage`] slice.
+    pub fn textures(&self) -> &[RgbaImage] {
+        &self.values
     }
 }
 
@@ -68,7 +75,8 @@ impl fmt::Debug for Texture {
 #[inline]
 fn rgb_iter(step: usize) -> impl Iterator<Item = (u8, u8, u8)> {
     (0..=u8::MAX)
+        .rev()
         .step_by(step)
-        .flat_map(move |r| (0..=u8::MAX).step_by(step).map(move |g| (r, g)))
-        .flat_map(move |(r, g)| (0..=u8::MAX).step_by(step).map(move |b| (r, g, b)))
+        .flat_map(move |r| (0..=u8::MAX).rev().step_by(step).map(move |g| (r, g)))
+        .flat_map(move |(r, g)| (0..=u8::MAX).rev().step_by(step).map(move |b| (r, g, b)))
 }

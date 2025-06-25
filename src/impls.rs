@@ -2,6 +2,23 @@ use crate::generator::TextureGenerator;
 use crate::{KdMap, PNG_EXT, SIZE, Texture, rgb_iter};
 use image::*;
 
+/*pub struct AllTextures {
+    resolution: usize,
+}
+
+impl AllTextures {
+    pub fn new(resolution: usize) -> Self {
+        Self { resolution }
+    }
+}
+
+impl TextureGenerator for AllTextures {
+    fn compute_texture_avg_map(&self, textures: &[Texture]) -> KdMap {
+        todo!()
+    }
+}
+*/
+
 pub struct SingleTexture<'a> {
     resolution: usize,
     texture_name: &'a str,
@@ -20,10 +37,11 @@ impl<'a> SingleTexture<'a> {
 impl<'a> TextureGenerator for SingleTexture<'a> {
     fn compute_texture_avg_map(&self, textures: &[Texture]) -> KdMap {
         let lookup = {
-            if !self.texture_name.ends_with(PNG_EXT) {
-                self.texture_name.to_string() + PNG_EXT
+            let tmp = self.texture_name.to_string();
+            if !tmp.ends_with(PNG_EXT) {
+                tmp + PNG_EXT
             } else {
-                self.texture_name.to_string()
+                tmp
             }
         };
         let old_block = &textures
@@ -45,10 +63,11 @@ impl<'a> TextureGenerator for SingleTexture<'a> {
         rgb_iter(self.resolution)
             .map(|(r, g, b)| {
                 let mut new_block = RgbaImage::new(SIZE, SIZE);
-                for (x, y, pixel) in old_block.enumerate_pixels() {
+                for (x, y, old_pixel) in old_block.enumerate_pixels() {
+                    let luminance = calculate_luminance(old_pixel);
                     // The alpha channel is always maxed out because opacity should be deteremined
                     // exclusively by the block whose texture is being replaced.
-                    let new_pixel = recolor_pixel(pixel, r, g, b, u8::MAX);
+                    let new_pixel = recolor_pixel(luminance, r, g, b, u8::MAX);
                     new_block.put_pixel(x, y, new_pixel);
                 }
                 ([r as f64, g as f64, b as f64], new_block)
@@ -58,6 +77,7 @@ impl<'a> TextureGenerator for SingleTexture<'a> {
 }
 
 const U8_MAX_F64: f64 = u8::MAX as f64;
+const U8_MIN_F64: f64 = u8::MIN as f64;
 
 fn calculate_luminance(pixel: &Rgba<u8>) -> f64 {
     let r = pixel[0] as f64 / U8_MAX_F64;
@@ -67,10 +87,9 @@ fn calculate_luminance(pixel: &Rgba<u8>) -> f64 {
     (0.2126 * r) + (0.7152 * g) + (0.0722 * b)
 }
 
-pub fn recolor_pixel(src_pixel: &Rgba<u8>, r: u8, g: u8, b: u8, a: u8) -> Rgba<u8> {
-    let luminance = calculate_luminance(src_pixel);
-    let r = (r as f64 * luminance).round().clamp(0.0, U8_MAX_F64) as u8;
-    let g = (g as f64 * luminance).round().clamp(0.0, U8_MAX_F64) as u8;
-    let b = (b as f64 * luminance).round().clamp(0.0, U8_MAX_F64) as u8;
+fn recolor_pixel(luminance: f64, r: u8, g: u8, b: u8, a: u8) -> Rgba<u8> {
+    let r = (r as f64 * luminance).round().clamp(U8_MIN_F64, U8_MAX_F64) as u8;
+    let g = (g as f64 * luminance).round().clamp(U8_MIN_F64, U8_MAX_F64) as u8;
+    let b = (b as f64 * luminance).round().clamp(U8_MIN_F64, U8_MAX_F64) as u8;
     Rgba::from([r, g, b, a])
 }

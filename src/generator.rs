@@ -6,10 +6,7 @@ use rayon::prelude::*;
 use std::fs;
 use vfs::{VfsFileType, VfsPath};
 
-use crate::impls::recolor_pixel;
-
 pub trait TextureGenerator {
-    /// The returned [`KdTree`] contains points which map to indexes of the returned `Vec`.
     fn compute_texture_avg_map(&self, textures: &[Texture]) -> KdMap;
 
     /// Convert the raw data of all images within `virt_root` into textures,
@@ -68,46 +65,33 @@ pub trait TextureGenerator {
     }
 
     fn write(&self, target_dir: &str, textures: Vec<Texture>, map: KdMap) {
+        //let tmp =
         textures.into_par_iter().for_each(|texture| {
             let old_width = texture.img.width();
             let old_height = texture.img.height();
             let new_width = old_width * SIZE;
             let new_height = old_height * SIZE;
-            let mut new_img = RgbaImage::new(new_width, new_height);
-            for x in 0..old_width {
-                for y in 0..old_height {
-                    // Get current pixel from old texture.
-                    let old_pixel = texture.img.get_pixel(x, y);
-                    // Find the whole texture whose approximate average color
-                    // is closest to the current pixel.
-                    let closest_block = map.get_nearest(&[
-                        old_pixel[0] as f64,
-                        old_pixel[1] as f64,
-                        old_pixel[2] as f64,
-                    ]);
-                    let x_offset = x * SIZE;
-                    let y_offset = y * SIZE;
-                    // Iterate over sub-pixel group.
-                    for dx in 0..SIZE {
-                        for dy in 0..SIZE {
-                            if *old_pixel.0.last().unwrap() != 0 {
-                                let pixel = closest_block.get_pixel(dx, dy).clone();
-                                let _testing = recolor_pixel(
-                                    old_pixel,
-                                    pixel[0],
-                                    pixel[1],
-                                    pixel[2],
-                                    old_pixel[3],
-                                );
-                                //pixel.0[3] = old_pixel.0[3];
-                                new_img.put_pixel(x_offset + dx, y_offset + dy, _testing);
-                            } else {
-                                new_img.put_pixel(
-                                    x_offset + dx,
-                                    y_offset + dy,
-                                    Rgba::from([0, 0, 0, 0]),
-                                );
-                            }
+            let mut new_image = RgbaImage::new(new_width, new_height);
+            for (x, y, old_pixel) in texture.img.enumerate_pixels() {
+                let query = old_pixel.to_rgb().0.map(f64::from);
+                // Find the whole texture whose approximate average color
+                // is closest to the current pixel.
+                let closest_block = map.nearest(&query);
+                let offset_x = x * SIZE;
+                let offset_y = y * SIZE;
+                for (d_x, d_y, closest_pixel) in closest_block.enumerate_pixels() {
+                    match *old_pixel.0.last().unwrap() != 0 {
+                        true => {
+                            let mut pixel = closest_pixel.clone();
+                            pixel[3] = old_pixel[3];
+                            new_image.put_pixel(offset_x + d_x, offset_y + d_y, pixel);
+                        }
+                        false => {
+                            new_image.put_pixel(
+                                offset_x + d_x,
+                                offset_y + d_y,
+                                Rgba::from([0, 0, 0, 0]),
+                            );
                         }
                     }
                 }
@@ -117,7 +101,13 @@ pub trait TextureGenerator {
             fs::create_dir_all(tmp).unwrap();
             let f = fs::File::create(path).unwrap();
             let enc = PngEncoder::new_with_quality(f, CompressionType::Best, FilterType::Adaptive);
-            new_img.write_with_encoder(enc).unwrap();
+            new_image.write_with_encoder(enc).unwrap();
+            /*Texture {
+                img: new_image,
+                path: texture.path,
+            }*/
         });
+        //.collect::<Vec<_>>();
+        // _ = tmp;
     }
 }
