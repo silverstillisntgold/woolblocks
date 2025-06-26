@@ -2,22 +2,45 @@ use crate::generator::TextureGenerator;
 use crate::{KdMap, PNG_EXT, SIZE, Texture, rgb_iter};
 use image::*;
 
-/*pub struct AllTextures {
-    resolution: usize,
-}
-
-impl AllTextures {
-    pub fn new(resolution: usize) -> Self {
-        Self { resolution }
-    }
-}
+pub struct AllTextures;
 
 impl TextureGenerator for AllTextures {
     fn compute_texture_avg_map(&self, textures: &[Texture]) -> KdMap {
-        todo!()
+        textures
+            .into_iter()
+            .filter(|texture| texture.img.width() == SIZE && texture.img.height() == SIZE)
+            .filter(|texture| {
+                let s = texture.path.as_str();
+                !s.contains("debug") && !s.contains("jigsaw") && !s.contains("test")
+            })
+            .filter_map(|texture| {
+                calculate_average(&texture.img).map(|avg| (avg, texture.img.clone()))
+            })
+            .into()
     }
 }
-*/
+
+fn calculate_average(texture: &RgbaImage) -> Option<[f64; 3]> {
+    let pixel_count = (texture.width() * texture.height()) as f64;
+    let mut r_sum = 0.0;
+    let mut g_sum = 0.0;
+    let mut b_sum = 0.0;
+    for pixel in texture.pixels() {
+        match pixel[3] != 0 {
+            true => {
+                r_sum += pixel[0] as f64;
+                g_sum += pixel[1] as f64;
+                b_sum += pixel[2] as f64;
+            }
+            false => return None,
+        }
+    }
+    Some([
+        r_sum / pixel_count,
+        g_sum / pixel_count,
+        b_sum / pixel_count,
+    ])
+}
 
 pub struct SingleTexture<'a> {
     resolution: usize,
@@ -65,7 +88,7 @@ impl<'a> TextureGenerator for SingleTexture<'a> {
                 let mut new_block = RgbaImage::new(SIZE, SIZE);
                 for (x, y, old_pixel) in old_block.enumerate_pixels() {
                     let luminance = calculate_luminance(old_pixel);
-                    // The alpha channel is always maxed out because opacity should be deteremined
+                    // The alpha channel is always max because opacity should be deteremined
                     // exclusively by the block whose texture is being replaced.
                     let new_pixel = recolor_pixel(luminance, r, g, b, u8::MAX);
                     new_block.put_pixel(x, y, new_pixel);

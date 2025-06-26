@@ -16,9 +16,11 @@ fn main() {
     cj.print_json_data();
     let root = cj.into_virt_mem();
     let wool = SingleTexture::new("white_wool", 2);
+    //let wool = AllTextures;
     let (textures, version) = wool.extract_data(root);
     println!("resource pack version: {}", version);
     let map = wool.compute_texture_avg_map(&textures);
+    println!("{} distinct textures", map.len());
     //dump_textures(map.textures().to_vec());
     println!("len: {}", map.len());
     wool.write(DIR, textures, map);
