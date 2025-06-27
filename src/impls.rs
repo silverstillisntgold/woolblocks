@@ -1,6 +1,6 @@
 use crate::generator::TextureGenerator;
 use crate::{KdMap, PNG_EXT, SIZE, Texture};
-use image::*;
+use image::{Rgba, RgbaImage};
 
 pub struct AllTextures;
 
@@ -99,7 +99,6 @@ impl<'a> TextureGenerator for SingleTexture<'a> {
     }
 }
 
-#[inline]
 fn rgb_iter(step: usize) -> impl Iterator<Item = (u8, u8, u8)> {
     (0..=u8::MAX)
         .rev()

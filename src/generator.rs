@@ -1,7 +1,7 @@
 use crate::{KdMap, PNG_EXT, SIZE, Texture, VERSION_JSON};
 use camino::Utf8PathBuf;
-use image::codecs::png::*;
-use image::*;
+use image::codecs::png::{CompressionType, FilterType, PngEncoder};
+use image::{ImageFormat, Pixel, Rgba, RgbaImage, load_from_memory_with_format};
 use rayon::prelude::*;
 use std::fs;
 use vfs::{VfsFileType, VfsPath};

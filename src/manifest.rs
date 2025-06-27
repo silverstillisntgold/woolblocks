@@ -45,8 +45,7 @@ pub enum Version<'a> {
     Snapshot,
 }
 
-/// Returns the raw bytes of the client jar for the passed `version_id`,
-/// or for the latest stable version if `None` is passed.
+/// Return the raw bytes of the client jar for the passed `version_id`.
 pub fn get_client_jar_as_bytes(version_id: Version) -> Box<[u8]> {
     let version = get_version(version_id);
     let client_data = get_client_data(version);
@@ -67,7 +66,6 @@ fn get_version(version_id: Version) -> VersionData {
         .versions
         .into_iter()
         .find(|v| v.id.as_str().eq(target_version))
-        // Should only be reachable when user provides incorrect `Version::Custom`.
         .expect(&format!(
             "provided version '{}' should be a valid Minecraft version",
             target_version
@@ -79,8 +77,7 @@ fn get_client_data(version: VersionData) -> ClientData {
     let package_manifest_hash = Sha1::from(&package_manifest_bytes).digest().to_string();
     assert!(
         version.sha1 == package_manifest_hash,
-        "sha1 validation of package manifest for version \"{}\" failed",
-        &version.id
+        "sha1 validation of package manifest failed"
     );
     serde_json::from_slice::<PackageManifest>(&package_manifest_bytes)
         .unwrap()
