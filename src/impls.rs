@@ -1,18 +1,34 @@
 use crate::generator::TextureGenerator;
-use crate::{KdMap, PNG_EXT, SIZE, Texture};
+use crate::{KdMap, PNG_EXT, SIZE, TARGET_DIR, Texture};
 use image::{Rgba, RgbaImage};
 
 pub struct AllTextures;
 
 impl TextureGenerator for AllTextures {
     fn compute_texture_avg_map(&self, textures: &[Texture]) -> KdMap {
+        /// TODO: More exclusions.
+        /// Shitty textures I don't want being used.
+        const TEXTURE_EXCLUSION_LIST: &[&str] = &[
+            "book",
+            "comparator",
+            "pumpkin",
+            "debug",
+            "destroy",
+            "dispenser",
+            "dropper",
+            "furnace",
+            "jigsaw",
+            "repeater",
+            "test",
+            "observer",
+        ];
         textures
             .into_iter()
             .filter(|texture| texture.img.width() == SIZE && texture.img.height() == SIZE)
             .filter(|texture| {
                 let s = texture.path.as_str();
-                // Some shitty textures I don't want being used.
-                !s.contains("debug") && !s.contains("jigsaw") && !s.contains("test")
+                s.contains(TARGET_DIR[0])
+                    && TEXTURE_EXCLUSION_LIST.into_iter().all(|t| !s.contains(t))
             })
             .filter_map(|texture| {
                 calculate_average(&texture.img).map(|avg| (avg, texture.img.clone()))

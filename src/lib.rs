@@ -1,9 +1,3 @@
-/*!
-Documentation goes here.
-*/
-
-//#![deny(missing_docs)]
-
 mod client;
 mod generator;
 mod impls;
@@ -26,6 +20,22 @@ const SIZE: u32 = 16;
 const TARGET_DIR: &[&str] = &["/block/", "/entity/", "/item/", "/trims/"];
 const VERSION_JSON: &str = "version.json";
 
+pub struct Texture {
+    img: RgbaImage,
+    path: Utf8PathBuf,
+}
+
+impl fmt::Debug for Texture {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Texture")
+            .field("path", &self.path.as_str())
+            .finish()
+    }
+}
+
+/// Wraps an `ImmutableKdTree` and `Vec`, where each RGB
+/// entry in the KdTree is represented by the `RgbaImage` which
+/// used that RGB value as a tint.
 pub struct KdMap {
     keys: ImmutableKdTree<f64, DIMENSIONS>,
     values: Vec<RgbaImage>,
@@ -58,18 +68,5 @@ where
         let keys = ImmutableKdTree::new_from_slice(&keys_src);
         assert_eq!(keys.size(), values.len());
         Self { keys, values }
-    }
-}
-
-pub struct Texture {
-    img: RgbaImage,
-    path: Utf8PathBuf,
-}
-
-impl fmt::Debug for Texture {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Texture")
-            .field("path", &self.path.as_str())
-            .finish()
     }
 }

@@ -96,7 +96,7 @@ pub trait TextureGenerator {
                 let offset_x = x * SIZE;
                 let offset_y = y * SIZE;
                 for (d_x, d_y, closest_pixel) in closest_block.enumerate_pixels() {
-                    match *old_pixel.0.last().unwrap() != 0 {
+                    match old_pixel[3] != 0 {
                         true => {
                             let mut pixel = closest_pixel.clone();
                             pixel[3] = old_pixel[3];
