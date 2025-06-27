@@ -11,6 +11,7 @@ impl TextureGenerator for AllTextures {
             .filter(|texture| texture.img.width() == SIZE && texture.img.height() == SIZE)
             .filter(|texture| {
                 let s = texture.path.as_str();
+                // Some shitty textures I don't want being used.
                 !s.contains("debug") && !s.contains("jigsaw") && !s.contains("test")
             })
             .filter_map(|texture| {
@@ -26,6 +27,7 @@ fn calculate_average(texture: &RgbaImage) -> Option<[f64; 3]> {
     let mut g_sum = 0.0;
     let mut b_sum = 0.0;
     for pixel in texture.pixels() {
+        // Immediately terminate on transparent pixel.
         match pixel[3] != 0 {
             true => {
                 r_sum += pixel[0] as f64;
@@ -79,7 +81,7 @@ impl<'a> TextureGenerator for SingleTexture<'a> {
             "the source texture must be {}x{}, '{}' is {}x{}",
             SIZE,
             SIZE,
-            lookup,
+            self.texture_name,
             width,
             height
         );
@@ -88,9 +90,7 @@ impl<'a> TextureGenerator for SingleTexture<'a> {
                 let mut new_block = RgbaImage::new(SIZE, SIZE);
                 for (x, y, old_pixel) in old_block.enumerate_pixels() {
                     let luminance = calculate_luminance(old_pixel);
-                    // The alpha channel is always max because opacity should be deteremined
-                    // exclusively by the block whose texture is being replaced.
-                    let new_pixel = recolor_pixel(luminance, r, g, b, u8::MAX);
+                    let new_pixel = recolor_pixel(luminance, r, g, b);
                     new_block.put_pixel(x, y, new_pixel);
                 }
                 ([r as f64, g as f64, b as f64], new_block)
@@ -99,6 +99,7 @@ impl<'a> TextureGenerator for SingleTexture<'a> {
     }
 }
 
+#[inline]
 fn rgb_iter(step: usize) -> impl Iterator<Item = (u8, u8, u8)> {
     (0..=u8::MAX)
         .rev()
@@ -118,9 +119,11 @@ fn calculate_luminance(pixel: &Rgba<u8>) -> f64 {
     (0.2126 * r) + (0.7152 * g) + (0.0722 * b)
 }
 
-fn recolor_pixel(luminance: f64, r: u8, g: u8, b: u8, a: u8) -> Rgba<u8> {
+fn recolor_pixel(luminance: f64, r: u8, g: u8, b: u8) -> Rgba<u8> {
     let r = (r as f64 * luminance).round().clamp(U8_MIN_F64, U8_MAX_F64) as u8;
     let g = (g as f64 * luminance).round().clamp(U8_MIN_F64, U8_MAX_F64) as u8;
     let b = (b as f64 * luminance).round().clamp(U8_MIN_F64, U8_MAX_F64) as u8;
-    Rgba::from([r, g, b, a])
+    // The alpha channel is always max because opacity should be deteremined
+    // exclusively by the block whose texture is being replaced.
+    Rgba::from([r, g, b, u8::MAX])
 }

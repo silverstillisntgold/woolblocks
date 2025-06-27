@@ -1,4 +1,4 @@
-use crate::{KdMap, PNG_EXT, SIZE, Texture, VERSION_JSON};
+use crate::{ClientJar, KdMap, PNG_EXT, SIZE, Texture, VERSION_JSON};
 use camino::Utf8PathBuf;
 use image::codecs::png::{CompressionType, FilterType, PngEncoder};
 use image::{ImageFormat, Pixel, Rgba, RgbaImage, load_from_memory_with_format};
@@ -8,6 +8,16 @@ use vfs::{VfsFileType, VfsPath};
 
 pub trait TextureGenerator {
     fn compute_texture_avg_map(&self, textures: &[Texture]) -> KdMap;
+
+    fn do_all(&self, client_jar: ClientJar) {
+        let virt_root = client_jar.into_virt_mem();
+        let (textures, version) = self.extract_data(virt_root);
+        _ = version;
+        let map = self.compute_texture_avg_map(&textures);
+        let textures = self.into_writable(textures, map);
+        _ = textures;
+        //self.write("tmp", textures, map);
+    }
 
     /// Convert the raw data of all images within `virt_root` into textures,
     /// and extract the resource pack version from its `version.json`.
@@ -62,6 +72,12 @@ pub trait TextureGenerator {
             .unwrap();
 
         (textures, resource_pack_version)
+    }
+
+    fn into_writable(&self, textures: Vec<Texture>, map: KdMap) -> Vec<Texture> {
+        _ = textures;
+        _ = map;
+        todo!()
     }
 
     fn write(&self, target_dir: &str, textures: Vec<Texture>, map: KdMap) {
