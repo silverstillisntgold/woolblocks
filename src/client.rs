@@ -7,16 +7,10 @@ use zip::ZipArchive;
 /// Wraps the raw bytes of a client jar.
 pub struct ClientJar(Box<[u8]>);
 
-impl From<Box<[u8]>> for ClientJar {
-    fn from(value: Box<[u8]>) -> Self {
-        Self(value)
-    }
-}
-
 impl ClientJar {
     /// Create a new [`ClientJar`] from the user-provided `version_id`.
     ///
-    /// The program will panic if `version_id` match isn't found.
+    /// The program will panic if no match for `version_id` is found.
     pub fn new(version_id: &str) -> Self {
         get_client_jar_as_bytes(Version::Custom(version_id)).into()
     }
@@ -37,7 +31,8 @@ impl ClientJar {
         self.into()
     }
 
-    pub fn print_json_data(&self) {
+    /// What the fuck do you think this does.
+    pub fn print_version_json(&self) {
         let copy = ClientJar::from(self.0.clone());
         let json = copy
             .into_virt_mem()
@@ -51,6 +46,12 @@ impl ClientJar {
         let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
         println!("{}", json);
         println!("{:#?}", parsed.as_object().unwrap());
+    }
+}
+
+impl From<Box<[u8]>> for ClientJar {
+    fn from(value: Box<[u8]>) -> Self {
+        Self(value)
     }
 }
 
@@ -81,6 +82,7 @@ impl From<ClientJar> for VfsPath {
                 })
             {
                 let path = virt_root.join(path).unwrap();
+                // Ensure the file we're about to write has somewhere to be written to.
                 path.parent().create_dir_all().unwrap();
                 let mut virt_file = path.create_file().unwrap();
                 copy(&mut zipped_file, &mut virt_file).unwrap();

@@ -13,7 +13,7 @@ fn main() {
         fs::remove_dir_all(DIR).unwrap();
     }
     let cj = ClientJar::new_release();
-    cj.print_json_data();
+    cj.print_version_json();
     let root = cj.into_virt_mem();
     let wool = SingleTexture::new("white_wool", 2);
     //let wool = AllTextures;
