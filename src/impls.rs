@@ -1,5 +1,5 @@
 use crate::generator::TextureGenerator;
-use crate::{KdMap, PNG_EXT, SIZE, Texture, rgb_iter};
+use crate::{KdMap, PNG_EXT, SIZE, Texture};
 use image::*;
 
 pub struct AllTextures;
@@ -97,6 +97,15 @@ impl<'a> TextureGenerator for SingleTexture<'a> {
             })
             .into()
     }
+}
+
+#[inline]
+fn rgb_iter(step: usize) -> impl Iterator<Item = (u8, u8, u8)> {
+    (0..=u8::MAX)
+        .rev()
+        .step_by(step)
+        .flat_map(move |r| (0..=u8::MAX).rev().step_by(step).map(move |g| (r, g)))
+        .flat_map(move |(r, g)| (0..=u8::MAX).rev().step_by(step).map(move |b| (r, g, b)))
 }
 
 const U8_MAX_F64: f64 = u8::MAX as f64;
