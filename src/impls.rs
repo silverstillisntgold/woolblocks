@@ -1,21 +1,39 @@
 use crate::generator::TextureGenerator;
 use crate::{KdMap, PNG_EXT, SIZE, TARGET_DIR, Texture};
 use image::{Rgba, RgbaImage};
+use rayon::prelude::*;
 
 pub struct AllTextures;
 
 impl TextureGenerator for AllTextures {
     fn compute_texture_avg_map(&self, textures: &[Texture]) -> KdMap {
-        /// TODO: More exclusions.
-        /// Shitty textures I don't want being used.
+        /// Textures which are shitty sources.
         const TEXTURE_EXCLUSION_LIST: &[&str] = &[
             "book",
+            "bee_nest_front",
+            "cauldron_side",
+            "lamp",
+            "beehive",
+            "glazed",
+            "cartography_table_side1",
+            "cartography_table_side2",
+            "cartography_table_top",
+            "door",
             "comparator",
             "pumpkin",
             "debug",
             "destroy",
             "dispenser",
             "dropper",
+            "crafter",
+            "crafting",
+            "calibrated",
+            "lectern",
+            "loom_front",
+            "trial",
+            "loom_top",
+            "bulb",
+            "lantern",
             "furnace",
             "jigsaw",
             "repeater",
@@ -23,7 +41,7 @@ impl TextureGenerator for AllTextures {
             "observer",
         ];
         textures
-            .into_iter()
+            .into_par_iter()
             .filter(|texture| texture.img.width() == SIZE && texture.img.height() == SIZE)
             .filter(|texture| {
                 let s = texture.path.as_str();
@@ -67,7 +85,7 @@ pub struct SingleTexture<'a> {
 
 impl<'a> SingleTexture<'a> {
     pub fn new(texture_name: &'a str, resolution: usize) -> Self {
-        let resolution = resolution.clamp(1, 8);
+        let resolution = resolution.clamp(1, 4);
         Self {
             resolution,
             texture_name,
@@ -101,7 +119,8 @@ impl<'a> TextureGenerator for SingleTexture<'a> {
             width,
             height
         );
-        rgb_iter(self.resolution)
+        rgb_vec(self.resolution)
+            .into_par_iter()
             .map(|(r, g, b)| {
                 let mut new_block = RgbaImage::new(SIZE, SIZE);
                 for (x, y, old_pixel) in old_block.enumerate_pixels() {
@@ -115,13 +134,13 @@ impl<'a> TextureGenerator for SingleTexture<'a> {
     }
 }
 
-#[inline]
-fn rgb_iter(step: usize) -> impl Iterator<Item = (u8, u8, u8)> {
+fn rgb_vec(step: usize) -> Vec<(u8, u8, u8)> {
     (0..=u8::MAX)
         .rev()
         .step_by(step)
         .flat_map(move |r| (0..=u8::MAX).rev().step_by(step).map(move |g| (r, g)))
         .flat_map(move |(r, g)| (0..=u8::MAX).rev().step_by(step).map(move |b| (r, g, b)))
+        .collect()
 }
 
 const U8_MAX_F64: f64 = u8::MAX as f64;

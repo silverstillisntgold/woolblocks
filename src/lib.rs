@@ -6,6 +6,7 @@ mod manifest;
 use camino::Utf8PathBuf;
 use image::RgbaImage;
 use kiddo::{ImmutableKdTree, SquaredEuclidean};
+use rayon::iter::ParallelIterator;
 use std::fmt;
 
 pub use client::ClientJar;
@@ -61,7 +62,7 @@ impl KdMap {
 
 impl<T> From<T> for KdMap
 where
-    T: Iterator<Item = ([f64; DIMENSIONS], RgbaImage)>,
+    T: ParallelIterator<Item = ([f64; DIMENSIONS], RgbaImage)>,
 {
     fn from(value: T) -> Self {
         let (keys_src, values) = value.collect::<(Vec<_>, Vec<_>)>();
