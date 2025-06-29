@@ -46,9 +46,9 @@ impl<T: InternalGenerator> TextureGenerator for T {
 trait InternalGenerator {
     fn modify_textures(&self, textures: Vec<Texture>) -> Vec<Texture>;
 
-    fn zip(&self, zip_name: &str, textures: Vec<Texture>, pack_mcmeta: &str) {
-        todo!()
-    }
+    //fn zip(&self, zip_name: &str, textures: Vec<Texture>, pack_mcmeta: &str) {
+    //    todo!()
+    //}
 
     fn write(&self, dir_name: &str, textures: &[Texture], pack_mcmeta: &str) {
         fs::create_dir_all(dir_name).unwrap();

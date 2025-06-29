@@ -10,7 +10,8 @@ fn main() {
         fs::remove_dir_all(DIR).unwrap();
     }
     let client_jar = ClientJar::new_release();
-    SingleTexture::new("white_wool", 2).generate(DIR, client_jar, true);
+    Xbrz.generate(DIR, client_jar, true);
+    //SingleTexture::new("white_wool", 2).generate(DIR, client_jar, true);
     //AllTextures.generate(DIR, client_jar, true);
     return;
 
