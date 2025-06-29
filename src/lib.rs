@@ -1,6 +1,7 @@
 mod client;
 mod generator;
 mod impl_old;
+mod impls;
 mod manifest;
 
 use image::RgbaImage;
