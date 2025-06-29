@@ -1,9 +1,5 @@
-#![allow(unused)]
-
 mod client;
-mod generator;
 mod generators;
-mod impl_old;
 mod manifest;
 
 use image::RgbaImage;
@@ -12,24 +8,13 @@ use rayon::iter::ParallelIterator;
 use std::fmt;
 
 pub use client::ClientJar;
-pub use generator::TextureGenerator;
-pub use impl_old::*;
+pub use generators::{AllTextures, SingleTexture, TextureGenerator, Xbrz};
 
 const DIMENSIONS: usize = 3;
-const MANIFEST_URL: &str = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
 const PNG_EXT: &str = ".png";
-const SIZE: u32 = 16;
 /// Directories which will have their textures replaced.
 const TARGET_DIR: &[&str] = &["/block/", "/entity/", "/item/", "/trims/"];
 const VERSION_JSON: &str = "version.json";
-
-pub const JSON_OUTPUT: &str = "\
-{
-  \"pack\": {
-    \"description\": \"TRULY THE GREATEST RESOURCE PACK OF ALL TIME!!!\",
-    \"pack_format\": {}
-  }
-}";
 
 pub struct Texture {
     img: RgbaImage,

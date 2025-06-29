@@ -2,47 +2,73 @@ mod all_textures;
 mod single_texture;
 mod xbrz;
 
-use crate::{ClientJar, KdMap, SIZE, Texture};
+use crate::{ClientJar, KdMap, Texture};
+use image::codecs::png::{CompressionType, FilterType, PngEncoder};
 use image::{Pixel, Rgba, RgbaImage};
 use rayon::prelude::*;
+use std::fs;
 
 pub use all_textures::AllTextures;
 pub use single_texture::SingleTexture;
+pub use xbrz::Xbrz;
+
+const PACK_MCMETA: &str = "pack.mcmeta";
+const SIZE: u32 = 16;
 
 /// The massa trait for generating textures, which will be exposed
 /// to the end-user through a CLI interface in main.
 pub trait TextureGenerator {
-    fn generate(self, dst_zip_name: &str, client_jar: ClientJar, write_dir: bool);
+    fn generate(self, zip_name: &str, client_jar: ClientJar, write_dir: bool);
 }
 
 impl<T: InternalGenerator> TextureGenerator for T {
-    fn generate(self, dst_zip_name: &str, client_jar: ClientJar, write_dir: bool) {
+    fn generate(self, zip_name: &str, client_jar: ClientJar, write_dir: bool) {
         let (old_textures, version) = client_jar.parse();
+        let pack_mcmeta = format!(
+            "\
+{{
+  \"pack\": {{
+    \"description\": \"TRULY THE GREATEST RESOURCE PACK OF ALL TIME!!!\",
+    \"pack_format\": {}
+  }}
+}}\n",
+            version
+        );
         let new_textures = self.modify_textures(old_textures);
         if write_dir {
-            self.write(&new_textures);
+            let dir_name = zip_name.to_string() + "/";
+            self.write(&dir_name, &new_textures, &pack_mcmeta);
         }
-        self.zip(new_textures);
+        //self.zip(zip_name, new_textures, &pack_mcmeta);
     }
 }
 
-pub trait InternalGenerator {
+trait InternalGenerator {
     fn modify_textures(&self, textures: Vec<Texture>) -> Vec<Texture>;
 
-    fn zip(&self, textures: Vec<Texture>) {
+    fn zip(&self, zip_name: &str, textures: Vec<Texture>, pack_mcmeta: &str) {
         todo!()
     }
 
-    fn write(&self, textures: &[Texture]) {
-        todo!()
+    fn write(&self, dir_name: &str, textures: &[Texture], pack_mcmeta: &str) {
+        fs::create_dir_all(dir_name).unwrap();
+        fs::write(dir_name.to_string() + PACK_MCMETA, pack_mcmeta).unwrap();
+        textures.into_par_iter().for_each(|texture| {
+            let path = dir_name.to_string() + texture.path.as_str();
+            let tmp = std::path::Path::new(path.as_str()).parent().unwrap();
+            fs::create_dir_all(tmp).unwrap();
+            let f = fs::File::create(path).unwrap();
+            let enc = PngEncoder::new_with_quality(f, CompressionType::Best, FilterType::Adaptive);
+            texture.img.write_with_encoder(enc).unwrap();
+        });
     }
 }
 
-pub trait UpscalingGenerator {
+trait UpscalingGenerator {
     fn upscale(&self, textures: Vec<Texture>) -> Vec<Texture>;
 }
 
-pub trait MappingGenerator {
+trait MappingGenerator {
     fn create_rgb_map(&self, textures: &[Texture]) -> KdMap;
 
     fn map(&self, textures: Vec<Texture>, map: KdMap) -> Vec<Texture> {

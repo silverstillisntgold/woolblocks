@@ -1,3 +1,5 @@
+use super::{InternalGenerator, UpscalingGenerator};
+
 pub struct Xbrz {
     scaling_factor: usize,
 }
@@ -8,4 +10,15 @@ impl Xbrz {
     }
 }
 
-// TODO
+impl InternalGenerator for Xbrz {
+    fn modify_textures(&self, textures: Vec<crate::Texture>) -> Vec<crate::Texture> {
+        _ = self.scaling_factor;
+        todo!()
+    }
+}
+
+impl UpscalingGenerator for Xbrz {
+    fn upscale(&self, textures: Vec<crate::Texture>) -> Vec<crate::Texture> {
+        todo!()
+    }
+}

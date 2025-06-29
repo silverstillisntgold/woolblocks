@@ -1,6 +1,5 @@
-use super::{InternalGenerator, MappingGenerator};
-use crate::generator::TextureGenerator;
-use crate::{KdMap, PNG_EXT, SIZE, Texture};
+use super::{InternalGenerator, MappingGenerator, SIZE};
+use crate::{KdMap, PNG_EXT, Texture};
 use image::{Rgba, RgbaImage};
 use rayon::prelude::*;
 

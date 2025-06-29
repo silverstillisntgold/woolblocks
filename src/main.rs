@@ -3,15 +3,15 @@
 use std::{env, fs};
 use woolblocks::*;
 
-const DIR: &str = "tmp/";
+const DIR: &str = "tmp";
 
 fn main() {
     if fs::exists(DIR).unwrap() {
         fs::remove_dir_all(DIR).unwrap();
     }
     let client_jar = ClientJar::new_release();
-    //SingleTexture::new("white_wool", 2).run(client_jar);
-    AllTextures.run(DIR, client_jar);
+    SingleTexture::new("white_wool", 2).generate(DIR, client_jar, true);
+    //AllTextures.generate(DIR, client_jar, true);
     return;
 
     let rp_dir = env::args().into_iter().nth(1).unwrap();

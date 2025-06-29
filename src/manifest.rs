@@ -1,7 +1,8 @@
-use crate::MANIFEST_URL;
 use reqwest::blocking::get as https_get;
 use serde::Deserialize;
 use sha1_smol::Sha1;
+
+const MANIFEST_URL: &str = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
 
 #[derive(Deserialize)]
 struct VersionManifestV2 {
@@ -46,6 +47,8 @@ pub enum Version<'a> {
 }
 
 /// Return the raw bytes of the client jar for the passed `version_id`.
+///
+/// Panics on failure.
 pub fn get_client_jar_as_bytes(version_id: Version) -> Box<[u8]> {
     let version = get_version(version_id);
     let client_data = get_client_data(version);
