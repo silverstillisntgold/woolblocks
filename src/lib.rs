@@ -3,7 +3,6 @@ mod generator;
 mod impls;
 mod manifest;
 
-use camino::Utf8PathBuf;
 use image::RgbaImage;
 use kiddo::{ImmutableKdTree, SquaredEuclidean};
 use rayon::iter::ParallelIterator;
@@ -23,7 +22,7 @@ const VERSION_JSON: &str = "version.json";
 
 pub struct Texture {
     img: RgbaImage,
-    path: Utf8PathBuf,
+    path: String,
 }
 
 impl fmt::Debug for Texture {

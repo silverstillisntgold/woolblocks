@@ -1,75 +1,17 @@
-use crate::{ClientJar, KdMap, PNG_EXT, SIZE, Texture, VERSION_JSON};
-use camino::Utf8PathBuf;
+use crate::{ClientJar, KdMap, SIZE, Texture};
 use image::codecs::png::{CompressionType, FilterType, PngEncoder};
-use image::{ImageFormat, Pixel, Rgba, RgbaImage, load_from_memory_with_format};
+use image::{Pixel, Rgba, RgbaImage};
 use rayon::prelude::*;
 use std::fs;
-use vfs::{VfsFileType, VfsPath};
 
 pub trait TextureGenerator {
     fn compute_texture_avg_map(&self, textures: &[Texture]) -> KdMap;
 
     fn run(&self, zip_name: &str, client_jar: ClientJar) {
-        let virt_root = client_jar.into_virt_mem();
-        let (textures, version) = self.extract_data(virt_root);
+        let (textures, version) = client_jar.parse();
         let map = self.compute_texture_avg_map(&textures);
         let textures = self.into_writable(textures, map);
         self.write(zip_name, textures, version);
-    }
-
-    /// Convert the raw data of all images within `virt_root` into textures,
-    /// and extract the resource pack version from its `version.json`.
-    fn extract_data(&self, virt_root: VfsPath) -> (Vec<Texture>, u64) {
-        let textures = virt_root
-            .walk_dir()
-            .unwrap()
-            .map(Result::unwrap)
-            .filter_map(|path| {
-                let md = path.metadata().unwrap();
-                let is_file = md.file_type == VfsFileType::File;
-                let is_png = path.as_str().ends_with(PNG_EXT);
-                (is_file && is_png).then(|| {
-                    let capacity = md.len as usize;
-                    // It's very important that the length of `buf` starts at 0, since
-                    // `read_to_end` appends data instead of overwriting it.
-                    let mut buf = Vec::with_capacity(capacity);
-                    let file_size = path.open_file().unwrap().read_to_end(&mut buf).unwrap();
-                    // This being true guarantees no reallocations are made.
-                    assert_eq!(capacity, file_size);
-                    let img = load_from_memory_with_format(&buf, ImageFormat::Png)
-                        .unwrap()
-                        .to_rgba8();
-                    let path = Utf8PathBuf::from(path.as_str());
-                    Texture { img, path }
-                })
-            })
-            .collect();
-
-        // It's fucking beautiful.
-        let json_string = virt_root
-            .walk_dir()
-            .unwrap()
-            .map(Result::unwrap)
-            .find(|path| path.as_str().ends_with(VERSION_JSON))
-            .unwrap()
-            .read_to_string()
-            .unwrap();
-        let resource_pack_version = serde_json::from_str::<serde_json::Value>(&json_string)
-            .unwrap()
-            .as_object()
-            .unwrap()
-            .get("pack_version")
-            .unwrap()
-            .as_object()
-            .unwrap()
-            .get("resource")
-            .unwrap()
-            .as_number()
-            .unwrap()
-            .as_u64()
-            .unwrap();
-
-        (textures, resource_pack_version)
     }
 
     fn into_writable(&self, textures: Vec<Texture>, map: KdMap) -> Vec<Texture> {

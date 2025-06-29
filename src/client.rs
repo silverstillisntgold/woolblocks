@@ -1,7 +1,6 @@
 use crate::manifest::{Version, get_client_jar_as_bytes};
-use crate::{PNG_EXT, TARGET_DIR, VERSION_JSON};
-use std::io::{Cursor, copy};
-use vfs::{MemoryFS, VfsPath};
+use crate::{PNG_EXT, TARGET_DIR, Texture, VERSION_JSON};
+use std::io::{Cursor, Read};
 use zip::ZipArchive;
 
 /// Wraps the raw bytes of a client jar.
@@ -25,27 +24,9 @@ impl ClientJar {
         get_client_jar_as_bytes(Version::Snapshot).into()
     }
 
-    /// Convert contents of `self` into an in-memory, virtual filesystem.
-    /// The returned [`VfsPath`] represents the root of said filesystem.
-    pub fn into_virt_mem(self) -> VfsPath {
+    /// Returns a vector of the textures and the resource pack version.
+    pub fn parse(self) -> (Vec<Texture>, u64) {
         self.into()
-    }
-
-    /// What the fuck do you think this does.
-    pub fn print_version_json(&self) {
-        let copy = ClientJar::from(self.0.clone());
-        let json = copy
-            .into_virt_mem()
-            .walk_dir()
-            .unwrap()
-            .map(Result::unwrap)
-            .find(|path| path.as_str().ends_with(VERSION_JSON))
-            .unwrap()
-            .read_to_string()
-            .unwrap();
-        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
-        println!("{}", json);
-        println!("{:#?}", parsed.as_object().unwrap());
     }
 }
 
@@ -55,13 +36,12 @@ impl From<Box<[u8]>> for ClientJar {
     }
 }
 
-impl From<ClientJar> for VfsPath {
+impl From<ClientJar> for (Vec<Texture>, u64) {
     fn from(value: ClientJar) -> Self {
-        // Why worry about your operating system caching your filesystem
-        // when you can just force everything into RAM :).
-        let virt_root = VfsPath::new(MemoryFS::new());
-        let reader = Cursor::new(value.0);
+        let reader = Cursor::new(&value.0);
         let mut zip = ZipArchive::new(reader).unwrap();
+        let mut textures = Vec::with_capacity(zip.len());
+        let mut resource_pack_version = 0;
         for file_number in 0..zip.len() {
             let mut zipped_file = zip.by_index(file_number).unwrap();
             assert!(
@@ -81,13 +61,40 @@ impl From<ClientJar> for VfsPath {
                     (is_png && is_in_target_dir) || is_version_json
                 })
             {
-                let path = virt_root.join(path).unwrap();
-                // Ensure the file we're about to write has somewhere to be written to.
-                path.parent().create_dir_all().unwrap();
-                let mut virt_file = path.create_file().unwrap();
-                copy(&mut zipped_file, &mut virt_file).unwrap();
+                println!("{}", path);
+                match path.ends_with(PNG_EXT) {
+                    true => {
+                        let mut buf = Vec::with_capacity(zipped_file.size() as usize);
+                        zipped_file.read_to_end(&mut buf).unwrap();
+                        let img =
+                            image::load_from_memory_with_format(&buf, image::ImageFormat::Png)
+                                .unwrap()
+                                .into_rgba8();
+                        textures.push(Texture { img, path });
+                    }
+                    false => {
+                        let mut buf = String::with_capacity(zipped_file.size() as usize);
+                        zipped_file.read_to_string(&mut buf).unwrap();
+                        // It's fucking beautiful.
+                        resource_pack_version = serde_json::from_str::<serde_json::Value>(&buf)
+                            .unwrap()
+                            .as_object()
+                            .unwrap()
+                            .get("pack_version")
+                            .unwrap()
+                            .as_object()
+                            .unwrap()
+                            .get("resource")
+                            .unwrap()
+                            .as_number()
+                            .unwrap()
+                            .as_u64()
+                            .unwrap();
+                    }
+                }
             }
         }
-        virt_root
+        textures.shrink_to_fit();
+        (textures, resource_pack_version)
     }
 }

@@ -6,14 +6,13 @@ use rayon::prelude::*;
 use std::{env, fs};
 use woolblocks::*;
 
-const DIR: &str = "tmp";
+const DIR: &str = "tmp/";
 
 fn main() {
     if fs::exists(DIR).unwrap() {
         fs::remove_dir_all(DIR).unwrap();
     }
     let client_jar = ClientJar::new_release();
-    client_jar.print_version_json();
     //SingleTexture::new("white_wool", 2).run(client_jar);
     AllTextures.run(DIR, client_jar);
     return;
