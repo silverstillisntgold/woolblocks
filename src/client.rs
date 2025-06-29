@@ -1,4 +1,4 @@
-use crate::manifest::{Version, get_client_jar_as_bytes};
+use crate::manifest::{Version, get_client_jar_as_bytes as gcjab}; // lol
 use crate::{PNG_EXT, TARGET_DIR, Texture, VERSION_JSON};
 use image::{ImageFormat, load_from_memory_with_format as load_image}; // fukin long ass name
 use std::io::{Cursor, Read};
@@ -12,17 +12,17 @@ impl ClientJar {
     ///
     /// The program will panic if no match for `version_id` is found.
     pub fn new(version_id: &str) -> Self {
-        get_client_jar_as_bytes(Version::Custom(version_id)).into()
+        gcjab(Version::Custom(version_id)).into()
     }
 
     /// Create a new [`ClientJar`] from the latest release version available.
     pub fn new_release() -> Self {
-        get_client_jar_as_bytes(Version::Release).into()
+        gcjab(Version::Release).into()
     }
 
     /// Create a new [`ClientJar`] from the latest snapshot version available.
     pub fn new_snapshot() -> Self {
-        get_client_jar_as_bytes(Version::Snapshot).into()
+        gcjab(Version::Snapshot).into()
     }
 
     /// Return a [`Vec`] containing all to-be-replaced textures and their
@@ -40,7 +40,7 @@ impl From<Box<[u8]>> for ClientJar {
 
 impl From<ClientJar> for (Vec<Texture>, u64) {
     fn from(value: ClientJar) -> Self {
-        let reader = Cursor::new(&value.0);
+        let reader = Cursor::new(value.0);
         let mut zip = ZipArchive::new(reader).unwrap();
         let mut textures = Vec::with_capacity(zip.len());
         let mut resource_pack_version = 0;
@@ -55,8 +55,7 @@ impl From<ClientJar> for (Vec<Texture>, u64) {
                 // Strings are just simpler to work with here.
                 .map(|path| path.into_os_string().into_string().unwrap())
                 .filter(|path| {
-                    // Source directories contain tons of useless shit we don't
-                    // need to waste time on.
+                    // Source directories contain tons of useless shit.
                     let is_png = path.ends_with(PNG_EXT);
                     // We are only interested in a specific subset of directories.
                     let is_in_target_dir = TARGET_DIR
@@ -70,11 +69,13 @@ impl From<ClientJar> for (Vec<Texture>, u64) {
                     (is_png && is_in_target_dir) || is_pack || is_version_json
                 })
             {
+                // Why the fuck doesn't .size() return a usize?
+                let mut buf = Vec::with_capacity(zipped_file.size() as usize);
+                let len = zipped_file.read_to_end(&mut buf).unwrap();
+                // This being true guarantees no reallocations during reading.
+                assert_eq!(buf.len(), len);
                 match path.ends_with(PNG_EXT) {
                     true => {
-                        // Why the fuck doesn't .size() return a usize?
-                        let mut buf = Vec::with_capacity(zipped_file.size() as usize);
-                        zipped_file.read_to_end(&mut buf).unwrap();
                         let img = load_image(&buf, ImageFormat::Png).unwrap().into_rgba8();
                         textures.push(Texture { img, path });
                     }
@@ -84,8 +85,7 @@ impl From<ClientJar> for (Vec<Texture>, u64) {
                             "this branch should only be reachable a single time:\
                             before the resource pack version has been read"
                         );
-                        let mut buf = String::with_capacity(zipped_file.size() as usize);
-                        zipped_file.read_to_string(&mut buf).unwrap();
+                        let buf = String::from_utf8(buf).unwrap();
                         // It's fucking beautiful.
                         resource_pack_version = serde_json::from_str::<serde_json::Value>(&buf)
                             .unwrap()
