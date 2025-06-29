@@ -1,5 +1,6 @@
 use crate::manifest::{Version, get_client_jar_as_bytes};
 use crate::{PNG_EXT, TARGET_DIR, Texture, VERSION_JSON};
+use image::{ImageFormat, load_from_memory_with_format as load_image}; // fukin long ass name
 use std::io::{Cursor, Read};
 use zip::ZipArchive;
 
@@ -24,7 +25,8 @@ impl ClientJar {
         get_client_jar_as_bytes(Version::Snapshot).into()
     }
 
-    /// Returns a vector of the textures and the resource pack version.
+    /// Return a [`Vec`] containing all to-be-replaced textures and their
+    /// associated paths, as well as the resource pack version.
     pub fn parse(self) -> (Vec<Texture>, u64) {
         self.into()
     }
@@ -53,26 +55,35 @@ impl From<ClientJar> for (Vec<Texture>, u64) {
                 // Strings are just simpler to work with here.
                 .map(|path| path.into_os_string().into_string().unwrap())
                 .filter(|path| {
+                    // Source directories contain tons of useless shit we don't
+                    // need to waste time on.
                     let is_png = path.ends_with(PNG_EXT);
+                    // We are only interested in a specific subset of directories.
                     let is_in_target_dir = TARGET_DIR
                         .into_iter()
                         .any(|target_dir| path.contains(target_dir));
+                    // So our generated resource pack has a nice icon :).
+                    let is_pack = path.ends_with("pack.png");
+                    // Needed to avoid client being pissy about incorrect
+                    // resource pack version (whiny bitch frfr).
                     let is_version_json = path.ends_with(VERSION_JSON);
-                    (is_png && is_in_target_dir) || is_version_json
+                    (is_png && is_in_target_dir) || is_pack || is_version_json
                 })
             {
-                println!("{}", path);
                 match path.ends_with(PNG_EXT) {
                     true => {
+                        // Why the fuck doesn't .size() return a usize?
                         let mut buf = Vec::with_capacity(zipped_file.size() as usize);
                         zipped_file.read_to_end(&mut buf).unwrap();
-                        let img =
-                            image::load_from_memory_with_format(&buf, image::ImageFormat::Png)
-                                .unwrap()
-                                .into_rgba8();
+                        let img = load_image(&buf, ImageFormat::Png).unwrap().into_rgba8();
                         textures.push(Texture { img, path });
                     }
                     false => {
+                        assert_eq!(
+                            resource_pack_version, 0,
+                            "this branch should only be reachable a single time:\
+                            before the resource pack version has been read"
+                        );
                         let mut buf = String::with_capacity(zipped_file.size() as usize);
                         zipped_file.read_to_string(&mut buf).unwrap();
                         // It's fucking beautiful.
@@ -94,6 +105,8 @@ impl From<ClientJar> for (Vec<Texture>, u64) {
                 }
             }
         }
+        // As of 1.21.6, the initial allocation is over 26,000 elements
+        // but the final length is only around 2,500.
         textures.shrink_to_fit();
         (textures, resource_pack_version)
     }

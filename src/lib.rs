@@ -43,18 +43,18 @@ pub struct KdMap {
 }
 
 impl KdMap {
-    /// Returns the numbers of elements in the backing [`ImmutableKdTree`] and [`Vec`].
+    /// Return the numbers of elements in the backing [`ImmutableKdTree`] and [`Vec`].
     pub fn len(&self) -> usize {
         self.values.len()
     }
 
-    /// Finds the [`RgbaImage`] whose overall color is "closest" to that of `query`.
+    /// Find the [`RgbaImage`] whose overall color is "closest" to that of `query`.
     pub fn nearest(&self, query: &[f64; DIMENSIONS]) -> &RgbaImage {
         let index = self.keys.nearest_one::<SquaredEuclidean>(query).item as usize;
         &self.values[index]
     }
 
-    /// Provides the backing [`RgbaImage`] slice.
+    /// Provide the backing [`RgbaImage`] slice.
     pub fn textures(&self) -> &[RgbaImage] {
         &self.values
     }
