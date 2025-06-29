@@ -4,6 +4,11 @@ use image::{Pixel, Rgba, RgbaImage};
 use rayon::prelude::*;
 use std::fs;
 
+#[allow(unused)]
+pub trait TextureGeneratorV2 {
+    fn generate(&self, dst_zip_name: &str, textures: Vec<Texture>, version: u64);
+}
+
 pub trait TextureGenerator {
     fn compute_texture_avg_map(&self, textures: &[Texture]) -> KdMap;
 

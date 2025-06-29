@@ -1,6 +1,6 @@
 mod client;
 mod generator;
-mod impls;
+mod impl_old;
 mod manifest;
 
 use image::RgbaImage;
@@ -10,7 +10,7 @@ use std::fmt;
 
 pub use client::ClientJar;
 pub use generator::TextureGenerator;
-pub use impls::*;
+pub use impl_old::*;
 
 const DIMENSIONS: usize = 3;
 const MANIFEST_URL: &str = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
