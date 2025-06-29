@@ -1,20 +1,51 @@
+mod all_textures;
+mod single_texture;
+mod xbrz;
+
 use crate::{ClientJar, KdMap, SIZE, Texture};
-use image::codecs::png::{CompressionType, FilterType, PngEncoder};
 use image::{Pixel, Rgba, RgbaImage};
 use rayon::prelude::*;
-use std::fs;
 
+pub use all_textures::AllTextures;
+pub use single_texture::SingleTexture;
+
+/// The massa trait for generating textures, which will be exposed
+/// to the end-user through a CLI interface in main.
 pub trait TextureGenerator {
-    fn compute_texture_avg_map(&self, textures: &[Texture]) -> KdMap;
+    fn generate(self, dst_zip_name: &str, client_jar: ClientJar, write_dir: bool);
+}
 
-    fn run(&self, zip_name: &str, client_jar: ClientJar) {
-        let (textures, version) = client_jar.parse();
-        let map = self.compute_texture_avg_map(&textures);
-        let textures = self.into_writable(textures, map);
-        self.write(zip_name, textures, version);
+impl<T: InternalGenerator> TextureGenerator for T {
+    fn generate(self, dst_zip_name: &str, client_jar: ClientJar, write_dir: bool) {
+        let (old_textures, version) = client_jar.parse();
+        let new_textures = self.modify_textures(old_textures);
+        if write_dir {
+            self.write(&new_textures);
+        }
+        self.zip(new_textures);
+    }
+}
+
+pub trait InternalGenerator {
+    fn modify_textures(&self, textures: Vec<Texture>) -> Vec<Texture>;
+
+    fn zip(&self, textures: Vec<Texture>) {
+        todo!()
     }
 
-    fn into_writable(&self, textures: Vec<Texture>, map: KdMap) -> Vec<Texture> {
+    fn write(&self, textures: &[Texture]) {
+        todo!()
+    }
+}
+
+pub trait UpscalingGenerator {
+    fn upscale(&self, textures: Vec<Texture>) -> Vec<Texture>;
+}
+
+pub trait MappingGenerator {
+    fn create_rgb_map(&self, textures: &[Texture]) -> KdMap;
+
+    fn map(&self, textures: Vec<Texture>, map: KdMap) -> Vec<Texture> {
         textures
             .into_par_iter()
             .map(|texture| {
@@ -53,17 +84,5 @@ pub trait TextureGenerator {
                 }
             })
             .collect()
-    }
-
-    fn write(&self, zip_name: &str, textures: Vec<Texture>, version: u64) {
-        let _ = version;
-        textures.into_par_iter().for_each(|texture| {
-            let path = zip_name.to_string() + texture.path.as_str();
-            let tmp = std::path::Path::new(path.as_str()).parent().unwrap();
-            fs::create_dir_all(tmp).unwrap();
-            let f = fs::File::create(path).unwrap();
-            let enc = PngEncoder::new_with_quality(f, CompressionType::Best, FilterType::Adaptive);
-            texture.img.write_with_encoder(enc).unwrap();
-        });
     }
 }

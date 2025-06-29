@@ -1,7 +1,9 @@
+#![allow(unused)]
+
 mod client;
 mod generator;
+mod generators;
 mod impl_old;
-mod impls;
 mod manifest;
 
 use image::RgbaImage;
@@ -20,6 +22,14 @@ const SIZE: u32 = 16;
 /// Directories which will have their textures replaced.
 const TARGET_DIR: &[&str] = &["/block/", "/entity/", "/item/", "/trims/"];
 const VERSION_JSON: &str = "version.json";
+
+pub const JSON_OUTPUT: &str = "\
+{
+  \"pack\": {
+    \"description\": \"TRULY THE GREATEST RESOURCE PACK OF ALL TIME!!!\",
+    \"pack_format\": {}
+  }
+}";
 
 pub struct Texture {
     img: RgbaImage,
@@ -64,6 +74,7 @@ impl<T> From<T> for KdMap
 where
     T: ParallelIterator<Item = ([f64; DIMENSIONS], RgbaImage)>,
 {
+    #[inline]
     fn from(value: T) -> Self {
         let (keys_src, values) = value.collect::<(Vec<_>, Vec<_>)>();
         let keys = ImmutableKdTree::new_from_slice(&keys_src);

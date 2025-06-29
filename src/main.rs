@@ -1,8 +1,5 @@
 #![allow(unused)]
 
-use image::codecs::png::*;
-use image::*;
-use rayon::prelude::*;
 use std::{env, fs};
 use woolblocks::*;
 
