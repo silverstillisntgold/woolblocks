@@ -7,7 +7,6 @@ use kiddo::{ImmutableKdTree, SquaredEuclidean};
 use rayon::iter::ParallelIterator;
 use std::fmt;
 
-pub use client::ClientJar;
 pub use generators::{AllTextures, SingleTexture, TextureGenerator, Xbrz};
 
 const DIMENSIONS: usize = 3;
@@ -15,6 +14,12 @@ const PNG_EXT: &str = ".png";
 /// Directories which will have their textures replaced.
 const TARGET_DIR: &[&str] = &["/block/", "/entity/", "/item/", "/trims/"];
 const VERSION_JSON: &str = "version.json";
+
+pub enum Version<'a> {
+    Custom(&'a str),
+    Release,
+    Snapshot,
+}
 
 pub struct Texture {
     img: RgbaImage,

@@ -1,3 +1,4 @@
+use crate::Version;
 use reqwest::blocking::get as https_get;
 use serde::Deserialize;
 use sha1_smol::Sha1;
@@ -38,12 +39,6 @@ struct ClientData {
     sha1: String,
     size: u64,
     url: String,
-}
-
-pub enum Version<'a> {
-    Custom(&'a str),
-    Release,
-    Snapshot,
 }
 
 /// Return the raw bytes of the client jar for the passed `version_id`.

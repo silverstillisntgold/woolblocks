@@ -12,6 +12,7 @@ impl InternalGenerator for Xbrz {
     fn modify_textures(&self, textures: Vec<Texture>) -> Vec<Texture> {
         let tmp = self.upscale(textures);
         self.upscale(tmp)
+        //self.upscale(textures)
     }
 }
 

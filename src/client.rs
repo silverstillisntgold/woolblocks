@@ -1,5 +1,5 @@
-use crate::manifest::{Version, get_client_jar_as_bytes as gcjab}; // lol
-use crate::{PNG_EXT, TARGET_DIR, Texture, VERSION_JSON};
+use crate::manifest::get_client_jar_as_bytes as gcjab; // lol
+use crate::{PNG_EXT, TARGET_DIR, Texture, VERSION_JSON, Version};
 use image::{ImageFormat, load_from_memory_with_format as load_image}; // fukin long ass name
 use std::io::{Cursor, Read};
 use zip::ZipArchive;
@@ -11,18 +11,8 @@ impl ClientJar {
     /// Create a new [`ClientJar`] from the user-provided `version_id`.
     ///
     /// The program will panic if no match for `version_id` is found.
-    pub fn new(version_id: &str) -> Self {
-        gcjab(Version::Custom(version_id)).into()
-    }
-
-    /// Create a new [`ClientJar`] from the latest release version available.
-    pub fn new_release() -> Self {
-        gcjab(Version::Release).into()
-    }
-
-    /// Create a new [`ClientJar`] from the latest snapshot version available.
-    pub fn new_snapshot() -> Self {
-        gcjab(Version::Snapshot).into()
+    pub fn new(version_id: Version) -> Self {
+        gcjab(version_id).into()
     }
 
     /// Return a [`Vec`] containing all to-be-replaced textures and their

@@ -2,11 +2,15 @@ mod all_textures;
 mod single_texture;
 mod xbrz;
 
-use crate::{ClientJar, KdMap, Texture};
+use crate::client::ClientJar;
+use crate::{KdMap, Texture, Version};
 use image::codecs::png::{CompressionType, FilterType, PngEncoder};
 use image::{Pixel, Rgba, RgbaImage};
 use rayon::prelude::*;
 use std::fs;
+use std::io::Write;
+use zip::write::SimpleFileOptions;
+use zip::{CompressionMethod, ZipWriter};
 
 pub use all_textures::AllTextures;
 pub use single_texture::SingleTexture;
@@ -18,12 +22,12 @@ const SIZE: u32 = 16;
 /// The massa trait for generating textures, which will be exposed
 /// to the end-user through a CLI interface in main.
 pub trait TextureGenerator {
-    fn generate(self, zip_name: &str, client_jar: ClientJar, write_dir: bool);
+    fn generate(self, zip_name: &str, version_id: Version, write_dir: bool);
 }
 
 impl<T: InternalGenerator> TextureGenerator for T {
-    fn generate(self, zip_name: &str, client_jar: ClientJar, write_dir: bool) {
-        let (old_textures, version) = client_jar.parse();
+    fn generate(self, dst_name: &str, version_id: Version, write_dir: bool) {
+        let (old_textures, version) = ClientJar::new(version_id).parse();
         let pack_mcmeta = format!(
             "\
 {{
@@ -36,19 +40,33 @@ impl<T: InternalGenerator> TextureGenerator for T {
         );
         let new_textures = self.modify_textures(old_textures);
         if write_dir {
-            let dir_name = zip_name.to_string() + "/";
+            let dir_name = dst_name.to_string() + "/";
             self.write(&dir_name, &new_textures, &pack_mcmeta);
         }
-        //self.zip(zip_name, new_textures, &pack_mcmeta);
+        let zip_name = dst_name.to_string() + ".zip";
+        self.zip(&zip_name, new_textures, &pack_mcmeta);
     }
 }
 
 trait InternalGenerator {
     fn modify_textures(&self, textures: Vec<Texture>) -> Vec<Texture>;
 
-    //fn zip(&self, zip_name: &str, textures: Vec<Texture>, pack_mcmeta: &str) {
-    //    todo!()
-    //}
+    fn zip(&self, zip_name: &str, textures: Vec<Texture>, pack_mcmeta: &str) {
+        let inner = fs::File::create(zip_name).unwrap();
+        let mut zip = ZipWriter::new(inner);
+        let options = SimpleFileOptions::default().compression_method(CompressionMethod::Stored);
+        zip.start_file(PACK_MCMETA, options).unwrap();
+        zip.write_all(pack_mcmeta.as_bytes()).unwrap();
+        textures.into_iter().for_each(|texture| {
+            zip.start_file(texture.path, options).unwrap();
+            let mut buf = Vec::with_capacity(texture.img.as_raw().len());
+            let encoder =
+                PngEncoder::new_with_quality(&mut buf, CompressionType::Best, FilterType::Adaptive);
+            texture.img.write_with_encoder(encoder).unwrap();
+            zip.write_all(&buf).unwrap();
+        });
+        zip.finish().unwrap();
+    }
 
     fn write(&self, dir_name: &str, textures: &[Texture], pack_mcmeta: &str) {
         fs::create_dir_all(dir_name).unwrap();
