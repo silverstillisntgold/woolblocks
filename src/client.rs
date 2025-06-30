@@ -1,10 +1,11 @@
-use crate::manifest::get_client_jar_as_bytes as gcjab; // lol
+use crate::manifest::get_client_jar_as_bytes;
 use crate::types::{Texture, Version};
 use crate::{PNG_EXT, TARGET_DIR};
-use image::{ImageFormat, load_from_memory_with_format as load_image}; // fukin long ass name
+use image::{ImageFormat, load_from_memory_with_format};
 use std::io::{Cursor, Read};
 use zip::ZipArchive;
 
+const EXCLUSIONS: &[&str] = &["/misc/", "/color_palettes/"];
 const VERSION_JSON: &str = "version.json";
 
 /// Wraps the raw bytes of a client jar.
@@ -15,7 +16,7 @@ impl ClientJar {
     ///
     /// The program will panic if no match for `version_id` is found.
     pub fn new(version_id: Version) -> Self {
-        gcjab(version_id).into()
+        get_client_jar_as_bytes(version_id).into()
     }
 
     /// Return a [`Vec`] containing all to-be-replaced textures and their
@@ -50,6 +51,9 @@ impl From<ClientJar> for (Vec<Texture>, u64) {
                 .filter(|path| {
                     // Source directories contain tons of useless shit.
                     let is_png = path.ends_with(PNG_EXT);
+                    let is_gay = EXCLUSIONS
+                        .into_iter()
+                        .any(|exclusion| path.contains(exclusion));
                     // We are only interested in a specific subset of directories.
                     let is_in_target_dir = TARGET_DIR
                         .into_iter()
@@ -59,7 +63,7 @@ impl From<ClientJar> for (Vec<Texture>, u64) {
                     // Needed to avoid client being pissy about incorrect
                     // resource pack version (whiny bitch frfr).
                     let is_version_json = path.ends_with(VERSION_JSON);
-                    (is_png && is_in_target_dir) || is_pack || is_version_json
+                    !is_gay && ((is_png && is_in_target_dir) || is_pack || is_version_json)
                 })
             {
                 // Why the fuck doesn't .size() return a usize?
@@ -69,7 +73,9 @@ impl From<ClientJar> for (Vec<Texture>, u64) {
                 assert_eq!(buf.len(), len);
                 match path.ends_with(PNG_EXT) {
                     true => {
-                        let img = load_image(&buf, ImageFormat::Png).unwrap().into_rgba8();
+                        let img = load_from_memory_with_format(&buf, ImageFormat::Png)
+                            .unwrap()
+                            .into_rgba8();
                         textures.push(Texture { img, path });
                     }
                     false => {
@@ -98,8 +104,8 @@ impl From<ClientJar> for (Vec<Texture>, u64) {
                 }
             }
         }
-        // As of 1.21.6, the initial allocation is over 26,000 elements
-        // but the final length is only around 2,500.
+        // As of version 1.21.6, the initial allocation is over 26,000
+        // elements but the final length is just under 2,500.
         textures.shrink_to_fit();
         (textures, resource_pack_version)
     }

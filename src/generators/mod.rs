@@ -28,6 +28,7 @@ pub trait TextureGenerator {
 impl<T: InternalGenerator> TextureGenerator for T {
     fn generate(self, dst_name: &str, version_id: Version, write_dir: bool) {
         let (old_textures, version) = ClientJar::new(version_id).parse();
+        // This shit is aids.
         let pack_mcmeta = format!(
             "\
 {{

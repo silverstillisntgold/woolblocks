@@ -32,22 +32,11 @@ pub struct KdMap {
     values: Vec<RgbaImage>,
 }
 
-#[allow(unused)]
 impl KdMap {
-    /// Return the numbers of elements in the backing [`ImmutableKdTree`] and [`Vec`].
-    pub fn len(&self) -> usize {
-        self.values.len()
-    }
-
     /// Find the [`RgbaImage`] whose overall color is "closest" to that of `query`.
     pub fn nearest(&self, query: &[f64; DIMENSIONS]) -> &RgbaImage {
         let index = self.keys.nearest_one::<SquaredEuclidean>(query).item as usize;
         &self.values[index]
-    }
-
-    /// Provide the backing [`RgbaImage`] slice.
-    pub fn textures(&self) -> &[RgbaImage] {
-        &self.values
     }
 }
 
