@@ -1,5 +1,6 @@
 use super::{InternalGenerator, MappingGenerator, SIZE};
-use crate::{KdMap, TARGET_DIR, Texture};
+use crate::TARGET_DIR;
+use crate::types::{KdMap, Texture};
 use image::RgbaImage;
 use rayon::prelude::*;
 
@@ -8,6 +9,7 @@ const TEXTURE_EXCLUSION_LIST: &[&str] = &[
     "book",
     "bee_nest_front",
     "cauldron_side",
+    "ghast",
     "lamp",
     "beehive",
     "glazed",

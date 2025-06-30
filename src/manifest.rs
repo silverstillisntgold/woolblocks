@@ -1,7 +1,7 @@
-use crate::Version;
-use reqwest::blocking::get as https_get;
+use crate::types::Version;
 use serde::Deserialize;
 use sha1_smol::Sha1;
+use ureq::get as https_get;
 
 const MANIFEST_URL: &str = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
 
@@ -42,8 +42,6 @@ struct ClientData {
 }
 
 /// Return the raw bytes of the client jar for the passed `version_id`.
-///
-/// Panics on failure.
 pub fn get_client_jar_as_bytes(version_id: Version) -> Box<[u8]> {
     let version = get_version(version_id);
     let client_data = get_client_data(version);
@@ -52,9 +50,12 @@ pub fn get_client_jar_as_bytes(version_id: Version) -> Box<[u8]> {
 
 fn get_version(version_id: Version) -> VersionData {
     let version_manifest = https_get(MANIFEST_URL)
+        .call()
         .unwrap()
-        .json::<VersionManifestV2>()
+        .into_body()
+        .read_json::<VersionManifestV2>()
         .unwrap();
+    // Invalid `Custom` variants will cause a panic.
     let target_version = match version_id {
         Version::Custom(version) => version,
         Version::Release => version_manifest.latest.release.as_str(),
@@ -64,14 +65,16 @@ fn get_version(version_id: Version) -> VersionData {
         .versions
         .into_iter()
         .find(|v| v.id.as_str().eq(target_version))
-        .expect(&format!(
-            "provided version '{}' should be a valid Minecraft version",
-            target_version
-        ))
+        .expect("the `version_id` provided should be a valid minecraft version")
 }
 
 fn get_client_data(version: VersionData) -> ClientData {
-    let package_manifest_bytes = https_get(&version.url).unwrap().bytes().unwrap();
+    let package_manifest_bytes = https_get(&version.url)
+        .call()
+        .unwrap()
+        .into_body()
+        .read_to_vec()
+        .unwrap();
     let package_manifest_hash = Sha1::from(&package_manifest_bytes).digest().to_string();
     assert!(
         version.sha1 == package_manifest_hash,
@@ -84,19 +87,24 @@ fn get_client_data(version: VersionData) -> ClientData {
 }
 
 fn get_raw_client_bytes(client_data: ClientData) -> Box<[u8]> {
-    let client_bytes = https_get(&client_data.url).unwrap().bytes().unwrap();
+    let client_bytes = https_get(&client_data.url)
+        .call()
+        .unwrap()
+        .into_body()
+        .into_with_config()
+        .limit(u32::MAX as u64)
+        .read_to_vec()
+        .unwrap();
     // Don't bother computing/comparing hashes if sizes are mismatched.
     assert_eq!(
         client_data.size,
         client_bytes.len() as u64,
-        "incorrect file size for client jar"
+        "size validation of client jar failed"
     );
     let client_hash = Sha1::from(&client_bytes).digest().to_string();
     assert_eq!(
         client_data.sha1, client_hash,
         "sha1 validation of client jar failed"
     );
-    // It seems like it's not currently possible to do this in
-    // a way that moves the underlying data instead of copying it.
-    client_bytes.to_vec().into_boxed_slice()
+    client_bytes.into_boxed_slice()
 }

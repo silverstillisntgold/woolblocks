@@ -4,16 +4,16 @@ use std::{env, fs};
 use woolblocks::*;
 
 const GENERATED: &str = "generated/";
-const DIR: &str = "generated/all";
+const DIR: &str = "generated/xbrz";
 
 fn main() {
-    /*if fs::exists(GENERATED).unwrap() {
+    if fs::exists(GENERATED).unwrap() {
         fs::remove_dir_all(GENERATED).unwrap();
-    }*/
+    }
     let version_id = Version::Release;
-    //Xbrz.generate(DIR, version_id, true);
+    Xbrz.generate(DIR, version_id, true);
     //SingleTexture::new("white_wool", 2).generate(DIR, version_id, true);
-    AllTextures.generate(DIR, version_id, true);
+    //AllTextures.generate(DIR, version_id, true);
     return;
 
     let rp_dir = env::args().into_iter().nth(1).unwrap();

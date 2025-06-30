@@ -1,8 +1,8 @@
-use super::{InternalGenerator, UpscalingGenerator};
-use crate::Texture;
-use image::RgbaImage;
+use super::InternalGenerator;
+use crate::TARGET_DIR;
+use crate::types::Texture;
+use image::{Rgba, RgbaImage};
 use rayon::prelude::*;
-use xbrz::scale_rgba;
 
 const FACTOR: usize = 4;
 
@@ -10,14 +10,6 @@ pub struct Xbrz;
 
 impl InternalGenerator for Xbrz {
     fn modify_textures(&self, textures: Vec<Texture>) -> Vec<Texture> {
-        let tmp = self.upscale(textures);
-        self.upscale(tmp)
-        //self.upscale(textures)
-    }
-}
-
-impl UpscalingGenerator for Xbrz {
-    fn upscale(&self, textures: Vec<Texture>) -> Vec<Texture> {
         textures
             .into_par_iter()
             .map(|texture| {
@@ -25,9 +17,20 @@ impl UpscalingGenerator for Xbrz {
                 let old_height = texture.img.height() as usize;
                 let new_width = old_width * FACTOR;
                 let new_height = old_height * FACTOR;
-                let buf = scale_rgba(texture.img.as_raw(), old_width, old_height, FACTOR);
-                let new_image =
+                let buf = xbrz::scale_rgba(texture.img.as_raw(), old_width, old_height, FACTOR);
+                let mut new_image =
                     RgbaImage::from_raw(new_width as u32, new_height as u32, buf).unwrap();
+                // When the texture is an item, remove all pixels which aren't
+                // fully opaque. The xBrz upscaling algorithm occasionally leaves
+                // pixels semi-transparent when upscaling textures whose pixel-space
+                // isn't fully occupied. This looks weird on items.
+                if texture.path.contains(TARGET_DIR[2]) {
+                    for pixel in new_image.pixels_mut() {
+                        if pixel[3] != u8::MAX {
+                            *pixel = Rgba::from([0, 0, 0, 0]);
+                        }
+                    }
+                }
                 Texture {
                     img: new_image,
                     path: texture.path,

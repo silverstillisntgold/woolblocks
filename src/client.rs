@@ -1,8 +1,11 @@
 use crate::manifest::get_client_jar_as_bytes as gcjab; // lol
-use crate::{PNG_EXT, TARGET_DIR, Texture, VERSION_JSON, Version};
+use crate::types::{Texture, Version};
+use crate::{PNG_EXT, TARGET_DIR};
 use image::{ImageFormat, load_from_memory_with_format as load_image}; // fukin long ass name
 use std::io::{Cursor, Read};
 use zip::ZipArchive;
+
+const VERSION_JSON: &str = "version.json";
 
 /// Wraps the raw bytes of a client jar.
 pub struct ClientJar(Box<[u8]>);

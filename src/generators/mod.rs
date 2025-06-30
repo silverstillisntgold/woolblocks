@@ -3,7 +3,7 @@ mod single_texture;
 mod xbrz;
 
 use crate::client::ClientJar;
-use crate::{KdMap, Texture, Version};
+use crate::types::{KdMap, Texture, Version};
 use image::codecs::png::{CompressionType, FilterType, PngEncoder};
 use image::{Pixel, Rgba, RgbaImage};
 use rayon::prelude::*;
@@ -32,7 +32,7 @@ impl<T: InternalGenerator> TextureGenerator for T {
             "\
 {{
   \"pack\": {{
-    \"description\": \"TRULY THE GREATEST RESOURCE PACK OF ALL TIME!!!\",
+    \"description\": \"TRULY THE GREATEST TEXTURE PACK OF ALL TIME!!!\",
     \"pack_format\": {}
   }}
 }}\n",
@@ -80,10 +80,6 @@ trait InternalGenerator {
             texture.img.write_with_encoder(enc).unwrap();
         });
     }
-}
-
-trait UpscalingGenerator {
-    fn upscale(&self, textures: Vec<Texture>) -> Vec<Texture>;
 }
 
 trait MappingGenerator {

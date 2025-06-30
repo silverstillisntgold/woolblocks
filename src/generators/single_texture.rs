@@ -1,7 +1,11 @@
 use super::{InternalGenerator, MappingGenerator, SIZE};
-use crate::{KdMap, PNG_EXT, Texture};
+use crate::PNG_EXT;
+use crate::types::{KdMap, Texture};
 use image::{Rgba, RgbaImage};
 use rayon::prelude::*;
+
+const U8_MAX_F64: f64 = u8::MAX as f64;
+const U8_MIN_F64: f64 = u8::MIN as f64;
 
 pub struct SingleTexture<'a> {
     resolution: usize,
@@ -74,9 +78,6 @@ fn rgb_vec(step: usize) -> Vec<(u8, u8, u8)> {
         .flat_map(move |(r, g)| (0..=u8::MAX).rev().step_by(step).map(move |b| (r, g, b)))
         .collect()
 }
-
-const U8_MAX_F64: f64 = u8::MAX as f64;
-const U8_MIN_F64: f64 = u8::MIN as f64;
 
 fn calculate_luminance(pixel: &Rgba<u8>) -> f64 {
     let r = pixel[0] as f64 / U8_MAX_F64;
