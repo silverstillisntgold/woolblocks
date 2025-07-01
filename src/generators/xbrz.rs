@@ -1,5 +1,5 @@
 use super::InternalGenerator;
-use crate::TARGET_DIR;
+use crate::INCLUSIONS;
 use crate::types::Texture;
 use image::{Rgba, RgbaImage};
 use rayon::prelude::*;
@@ -24,7 +24,7 @@ impl InternalGenerator for Xbrz {
                 // fully opaque. The xBrz upscaling algorithm occasionally leaves
                 // pixels semi-transparent when upscaling textures whose pixel-space
                 // isn't fully occupied. This looks weird on items.
-                if texture.path.contains(TARGET_DIR[2]) {
+                if texture.path.contains(INCLUSIONS[2]) {
                     for pixel in new_image.pixels_mut() {
                         if pixel[3] != u8::MAX {
                             *pixel = Rgba::from([0, 0, 0, 0]);

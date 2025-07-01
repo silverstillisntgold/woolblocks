@@ -1,11 +1,10 @@
 use crate::manifest::get_client_jar_as_bytes;
 use crate::types::{Texture, Version};
-use crate::{PNG_EXT, TARGET_DIR};
+use crate::{EXCLUSIONS, INCLUSIONS, PNG_EXT};
 use image::{ImageFormat, load_from_memory_with_format};
 use std::io::{Cursor, Read};
 use zip::ZipArchive;
 
-const EXCLUSIONS: &[&str] = &["/misc/", "/color_palettes/"];
 const VERSION_JSON: &str = "version.json";
 
 /// Wraps the raw bytes of a client jar.
@@ -55,7 +54,7 @@ impl From<ClientJar> for (Vec<Texture>, u64) {
                         .into_iter()
                         .any(|exclusion| path.contains(exclusion));
                     // We are only interested in a specific subset of directories.
-                    let is_in_target_dir = TARGET_DIR
+                    let is_in_target_dir = INCLUSIONS
                         .into_iter()
                         .any(|target_dir| path.contains(target_dir));
                     // So our generated resource pack has a nice icon :).

@@ -1,11 +1,11 @@
 use super::{InternalGenerator, MappingGenerator, SIZE};
-use crate::TARGET_DIR;
+use crate::INCLUSIONS;
 use crate::types::{KdMap, Texture};
 use image::RgbaImage;
 use rayon::prelude::*;
 
 /// Textures which are shitty sources.
-const TEXTURE_EXCLUSION_LIST: &[&str] = &[
+const LOCAL_EXCLUSIONS: &[&str] = &[
     "book",
     "bee_nest_front",
     "cauldron_side",
@@ -55,8 +55,7 @@ impl MappingGenerator for AllTextures {
             .filter(|texture| texture.img.width() == SIZE && texture.img.height() == SIZE)
             .filter(|texture| {
                 let s = texture.path.as_str();
-                s.contains(TARGET_DIR[0])
-                    && TEXTURE_EXCLUSION_LIST.into_iter().all(|t| !s.contains(t))
+                s.contains(INCLUSIONS[0]) && LOCAL_EXCLUSIONS.into_iter().all(|t| !s.contains(t))
             })
             .filter_map(|texture| {
                 calculate_average(&texture.img).map(|avg| (avg, texture.img.clone()))

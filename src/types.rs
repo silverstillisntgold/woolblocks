@@ -11,6 +11,19 @@ pub enum Version<'a> {
     Snapshot,
 }
 
+#[allow(unused)]
+pub enum File {
+    Texture(RgbaImage),
+    McMeta(Box<[u8]>),
+    VersionJson(Box<[u8]>),
+}
+
+#[allow(unused)]
+pub struct TextureV2 {
+    pub data: File,
+    pub path: String,
+}
+
 pub struct Texture {
     pub img: RgbaImage,
     pub path: String,
