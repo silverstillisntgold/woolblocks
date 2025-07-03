@@ -22,12 +22,17 @@ const SIZE: u32 = 16;
 /// The massa trait for generating textures, which will be exposed
 /// to the end-user through a CLI interface in main.
 pub trait TextureGenerator {
-    fn generate(self, zip_name: &str, version_id: Version, write_dir: bool);
+    fn generate(self, zip_name: &str, version_id: Version, write_dir: bool, write_jar: bool);
 }
 
 impl<T: InternalGenerator> TextureGenerator for T {
-    fn generate(self, dst_name: &str, version_id: Version, write_dir: bool) {
-        let (old_textures, version) = ClientJar::new(version_id).parse();
+    fn generate(self, dst_name: &str, version_id: Version, write_dir: bool, write_jar: bool) {
+        fs::create_dir_all(dst_name).unwrap();
+        let client_jar = ClientJar::new(version_id);
+        if write_jar {
+            client_jar.write(dst_name);
+        }
+        let (old_textures, version) = client_jar.parse();
         // This shit is aids.
         let pack_mcmeta = format!(
             "\

@@ -11,7 +11,7 @@ fn main() {
         fs::remove_dir_all(GENERATED).unwrap();
     }
     let version_id = Version::Release;
-    Xbrz.generate(DIR, version_id, true);
+    Xbrz.generate(DIR, version_id, true, true);
     //SingleTexture::new("white_wool", 2).generate(DIR, version_id, true);
     //AllTextures.generate(DIR, version_id, true);
     return;

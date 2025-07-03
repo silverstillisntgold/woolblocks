@@ -2,7 +2,8 @@ use crate::manifest::get_client_jar_as_bytes;
 use crate::types::{Texture, Version};
 use crate::{EXCLUSIONS, INCLUSIONS, PNG_EXT};
 use image::{ImageFormat, load_from_memory_with_format};
-use std::io::{Cursor, Read};
+use std::fs;
+use std::io::{Cursor, Read, Write};
 use zip::ZipArchive;
 
 const VERSION_JSON: &str = "version.json";
@@ -22,6 +23,13 @@ impl ClientJar {
     /// associated paths, as well as the resource pack version.
     pub fn parse(self) -> (Vec<Texture>, u64) {
         self.into()
+    }
+
+    /// Writes the client jar to `dir`.
+    pub fn write(&self, path: &str) {
+        let path = path.to_string() + "client.jar";
+        let mut file = fs::File::create(&path).unwrap();
+        file.write_all(&self.0).unwrap();
     }
 }
 
