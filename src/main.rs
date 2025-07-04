@@ -1,19 +1,17 @@
 #![allow(unused)]
 
-use std::{env, fs};
+use std::{env, fs, io::Write};
 use woolblocks::*;
 
-const GENERATED: &str = "generated/";
-const DIR: &str = "generated/xbrz";
+const OUTPUT_DIR: &str = "generated/";
 
 fn main() {
-    if fs::exists(GENERATED).unwrap() {
-        fs::remove_dir_all(GENERATED).unwrap();
+    if fs::exists(OUTPUT_DIR).unwrap() {
+        fs::remove_dir_all(OUTPUT_DIR).unwrap();
     }
-    let version_id = Version::Release;
-    Xbrz.generate(DIR, version_id, true, true);
-    //SingleTexture::new("white_wool", 2).generate(DIR, version_id, true);
-    //AllTextures.generate(DIR, version_id, true);
+    Xbrz.generate(OUTPUT_DIR, Version::Release, true, false);
+    //SingleTexture::new("white_wool", 2).generate(OUTPUT_DIR, Version::Release, true, false);
+    AllTextures.generate(OUTPUT_DIR, Version::Release, true, false);
     return;
 
     let rp_dir = env::args().into_iter().nth(1).unwrap();

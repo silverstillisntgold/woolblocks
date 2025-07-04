@@ -4,9 +4,31 @@ mod manifest;
 mod types;
 
 pub use generators::{AllTextures, SingleTexture, TextureGenerator, Xbrz};
-pub use types::Version;
-pub use types::*;
 
-const EXCLUSIONS: &[&str] = &["/misc/", "/color_palettes/"];
-const INCLUSIONS: &[&str] = &["/block/", "/entity/", "/item/", "/trims/"];
-const PNG_EXT: &str = ".png";
+pub enum Version<'a> {
+    Custom(&'a str),
+    Release,
+    Snapshot,
+}
+
+const CLIENT_JAR: &str = "client.jar";
+/// Used in internal KdMap implementation.
+const DIMENSIONS: usize = 3;
+const EXCLUSIONS: &[&str] = &[
+    "/color_palettes/", // Subdirectory of "trims"
+];
+const INCLUSIONS: &[&str] = &[
+    "/block/",      // Block textures
+    "/entity/",     // Entity textures
+    "/item/",       // Handheld item textures
+    "/mob_effect/", // Status effect textures
+    "pack.png",     // Texture pack icon
+    "/trims/",      // Armor trim textures
+    "version.json", // Texture pack version
+];
+const MANIFEST_URL: &str = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
+const MCMETA_EXT: &str = "mcmeta";
+const PACK_MCMETA: &str = "pack.mcmeta";
+const PNG_EXT: &str = "png";
+const SIZE: u32 = 16;
+const VERSION_JSON: &str = INCLUSIONS.last().unwrap();

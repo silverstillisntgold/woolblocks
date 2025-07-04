@@ -1,9 +1,7 @@
-use crate::types::Version;
+use crate::{MANIFEST_URL, Version};
 use serde::Deserialize;
 use sha1_smol::Sha1;
 use ureq::get as https_get;
-
-const MANIFEST_URL: &str = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
 
 #[derive(Deserialize)]
 struct VersionManifestV2 {
@@ -37,7 +35,6 @@ struct DownloadData {
 #[derive(Deserialize)]
 struct ClientData {
     sha1: String,
-    size: u64,
     url: String,
 }
 
@@ -55,7 +52,7 @@ fn get_version(version_id: Version) -> VersionData {
         .into_body()
         .read_json::<VersionManifestV2>()
         .unwrap();
-    // Invalid `Custom` variants will cause a panic.
+    // Invalid `Custom` variant will cause a panic.
     let target_version = match version_id {
         Version::Custom(version) => version,
         Version::Release => version_manifest.latest.release.as_str(),
@@ -73,6 +70,8 @@ fn get_client_data(version: VersionData) -> ClientData {
         .call()
         .unwrap()
         .into_body()
+        .into_with_config()
+        .limit(u32::MAX as u64)
         .read_to_vec()
         .unwrap();
     let package_manifest_hash = Sha1::from(&package_manifest_bytes).digest().to_string();
@@ -95,12 +94,6 @@ fn get_raw_client_bytes(client_data: ClientData) -> Box<[u8]> {
         .limit(u32::MAX as u64)
         .read_to_vec()
         .unwrap();
-    // Don't bother computing/comparing hashes if sizes are mismatched.
-    assert_eq!(
-        client_data.size,
-        client_bytes.len() as u64,
-        "size validation of client jar failed"
-    );
     let client_hash = Sha1::from(&client_bytes).digest().to_string();
     assert_eq!(
         client_data.sha1, client_hash,
