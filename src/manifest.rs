@@ -70,8 +70,6 @@ fn get_client_data(version: VersionData) -> ClientData {
         .call()
         .unwrap()
         .into_body()
-        .into_with_config()
-        .limit(u32::MAX as u64)
         .read_to_vec()
         .unwrap();
     let package_manifest_hash = Sha1::from(&package_manifest_bytes).digest().to_string();

@@ -72,12 +72,12 @@ trait InternalGenerator {
             let buf = match &texture_data.file {
                 FileData::Texture(texture) => {
                     let mut buf = Vec::with_capacity(texture.len());
-                    let encoder = PngEncoder::new_with_quality(
+                    let enc = PngEncoder::new_with_quality(
                         &mut buf,
                         CompressionType::Best,
                         FilterType::Adaptive,
                     );
-                    texture.write_with_encoder(encoder).unwrap();
+                    texture.write_with_encoder(enc).unwrap();
                     buf
                 }
                 FileData::McMeta(data) => data.clone().into_vec(),

@@ -93,6 +93,7 @@ impl From<ClientJar> for (Vec<TextureData>, u64) {
     }
 }
 
+/// Extract the resource pack version from the raw bytes of `version.json`.
 fn version_json_to_version(buf: Vec<u8>) -> u64 {
     let json = String::from_utf8(buf).unwrap();
     // It's fucking beautiful.

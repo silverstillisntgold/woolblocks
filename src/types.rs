@@ -2,7 +2,6 @@ use crate::DIMENSIONS;
 use image::RgbaImage;
 use kiddo::{ImmutableKdTree, SquaredEuclidean};
 use rayon::iter::ParallelIterator;
-use std::fmt;
 
 pub struct TextureData {
     pub file: FileData,
@@ -15,38 +14,11 @@ impl TextureData {
     }
 }
 
-impl fmt::Debug for TextureData {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Texture")
-            .field("path", &self.path.as_str())
-            .finish()
-    }
-}
-
 pub enum FileData {
     /// Texture metadata
     McMeta(Box<[u8]>),
     /// Actual textures
     Texture(RgbaImage),
-}
-
-impl FileData {
-    pub fn as_bytes(&self) -> &[u8] {
-        self.as_ref()
-    }
-}
-
-impl AsRef<[u8]> for FileData {
-    fn as_ref(&self) -> &[u8] {
-        // This entire method gets compiled into a couple instructions.
-        // My guess is that rust's layout optimization aligns the backing
-        // pointers of all variants, so getting the raw bytes
-        // is always the same operation.
-        match self {
-            Self::McMeta(tmp) => tmp,
-            Self::Texture(tmp) => tmp,
-        }
-    }
 }
 
 /// Wraps an `ImmutableKdTree` and `Vec`, where each RGB

@@ -1,6 +1,6 @@
 #![allow(unused)]
 
-use std::{env, fs, io::Write};
+use std::{env, fs};
 use woolblocks::*;
 
 const OUTPUT_DIR: &str = "generated/";
@@ -11,7 +11,7 @@ fn main() {
     }
     Xbrz.generate(OUTPUT_DIR, Version::Release, true, false);
     //SingleTexture::new("white_wool", 2).generate(OUTPUT_DIR, Version::Release, true, false);
-    AllTextures.generate(OUTPUT_DIR, Version::Release, true, false);
+    //AllTextures.generate(OUTPUT_DIR, Version::Release, true, false);
     return;
 
     let rp_dir = env::args().into_iter().nth(1).unwrap();
