@@ -49,8 +49,8 @@ impl From<ClientJar> for (Vec<TextureData>, u64) {
                 .enclosed_name()
                 .map(|path| path.into_os_string().into_string().unwrap())
                 .filter(|path| {
-                    let is_included = INCLUSIONS.into_iter().any(|s| path.contains(s));
-                    let is_excluded = EXCLUSIONS.into_iter().any(|s| path.contains(s));
+                    let is_included = INCLUSIONS.iter().any(|s| path.contains(s));
+                    let is_excluded = EXCLUSIONS.iter().any(|s| path.contains(s));
                     is_included && !is_excluded
                 })
             {
@@ -72,8 +72,8 @@ impl From<ClientJar> for (Vec<TextureData>, u64) {
                         let file = FileData::McMeta(buf.into_boxed_slice());
                         textures.push(TextureData { file, path });
                     }
-                    _ => match path.ends_with(VERSION_JSON) {
-                        true => {
+                    _ => {
+                        if path.ends_with(VERSION_JSON) {
                             assert_eq!(
                                 resource_pack_version, 0,
                                 "this branch should only be reachable a single time:\
@@ -81,13 +81,12 @@ impl From<ClientJar> for (Vec<TextureData>, u64) {
                             );
                             resource_pack_version = version_json_to_version(buf);
                         }
-                        false => {}
-                    },
+                    }
                 }
             }
         }
         // As of version 1.21.7, the initial allocation is over 26,000
-        // elements but the final length is around 2,500.
+        // elements but the final length is only around 2,500.
         textures.shrink_to_fit();
         (textures, resource_pack_version)
     }
@@ -97,7 +96,7 @@ impl From<ClientJar> for (Vec<TextureData>, u64) {
 fn version_json_to_version(buf: Vec<u8>) -> u64 {
     let json = String::from_utf8(buf).unwrap();
     // It's fucking beautiful.
-    let ver = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&json)
+    serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&json)
         .unwrap()
         .get("pack_version")
         .unwrap()
@@ -106,6 +105,5 @@ fn version_json_to_version(buf: Vec<u8>) -> u64 {
         .get("resource")
         .unwrap()
         .as_u64()
-        .unwrap();
-    ver
+        .unwrap()
 }

@@ -14,9 +14,6 @@ fn main() {
     //AllTextures.generate(OUTPUT_DIR, Version::Release, true, false);
     return;
 
-    let rp_dir = env::args().into_iter().nth(1).unwrap();
-    let new_pack_name = env::args()
-        .into_iter()
-        .nth(2)
-        .unwrap_or("pixelized_wool".to_string());
+    let rp_dir = env::args().nth(1).unwrap();
+    let new_pack_name = env::args().nth(2).unwrap_or("pixelized_wool".to_string());
 }

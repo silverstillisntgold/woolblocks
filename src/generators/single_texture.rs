@@ -42,7 +42,7 @@ impl<'a> MappingGenerator for SingleTexture<'a> {
             }
         };
         let old_block = match &textures
-            .into_iter()
+            .iter()
             .find(|t| t.path.as_str().ends_with(&lookup))
             .unwrap()
             .file

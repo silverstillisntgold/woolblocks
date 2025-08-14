@@ -67,7 +67,7 @@ trait InternalGenerator {
         let options = SimpleFileOptions::default().compression_method(CompressionMethod::Stored);
         zip.start_file(PACK_MCMETA, options).unwrap();
         zip.write_all(pack_mcmeta).unwrap();
-        textures.into_iter().for_each(|texture_data| {
+        textures.iter().for_each(|texture_data| {
             zip.start_file(&texture_data.path, options).unwrap();
             let buf = match &texture_data.file {
                 FileData::Texture(texture) => {
@@ -134,7 +134,7 @@ trait MappingGenerator {
                             for (d_x, d_y, closest_pixel) in closest_block.enumerate_pixels() {
                                 match old_pixel[3] != 0 {
                                     true => {
-                                        let mut pixel = closest_pixel.clone();
+                                        let mut pixel = *closest_pixel;
                                         pixel[3] = old_pixel[3];
                                         new_image.put_pixel(offset_x + d_x, offset_y + d_y, pixel);
                                     }

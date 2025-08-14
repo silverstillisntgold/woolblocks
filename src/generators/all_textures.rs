@@ -60,12 +60,9 @@ impl MappingGenerator for AllTextures {
             })
             .filter(|(texture, _)| texture.width() == SIZE && texture.height() == SIZE)
             .filter(|(_, path)| {
-                path.contains(INCLUSIONS[0])
-                    && LOCAL_EXCLUSIONS.into_iter().all(|t| !path.contains(t))
+                path.contains(INCLUSIONS[0]) && LOCAL_EXCLUSIONS.iter().all(|t| !path.contains(t))
             })
-            .filter_map(|(texture, _)| {
-                calculate_average(&texture).map(|avg| (avg, texture.clone()))
-            })
+            .filter_map(|(texture, _)| calculate_average(texture).map(|avg| (avg, texture.clone())))
             .into()
     }
 }
