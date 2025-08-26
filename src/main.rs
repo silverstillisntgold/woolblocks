@@ -9,9 +9,9 @@ fn main() {
     if fs::exists(OUTPUT_DIR).unwrap() {
         fs::remove_dir_all(OUTPUT_DIR).unwrap();
     }
-    Xbrz.generate(OUTPUT_DIR, Version::Release, true, false);
+    //Xbrz.generate(OUTPUT_DIR, Version::Release, true, false);
     //SingleTexture::new("white_wool", 2).generate(OUTPUT_DIR, Version::Release, true, false);
-    //AllTextures.generate(OUTPUT_DIR, Version::Release, true, false);
+    AllTextures.generate(OUTPUT_DIR, Version::Release, true, false);
     return;
 
     let rp_dir = env::args().nth(1).unwrap();
