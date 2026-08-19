@@ -1,6 +1,6 @@
 use crate::DIMENSIONS;
 use image::RgbaImage;
-use kiddo::{ImmutableKdTree, SquaredEuclidean};
+use kiddo::{ImmutableKdTree, dist::SquaredEuclidean};
 use rayon::iter::ParallelIterator;
 
 pub struct TextureData {
@@ -17,7 +17,7 @@ impl TextureData {
 pub enum FileData {
     /// Texture metadata
     McMeta(Box<[u8]>),
-    /// Actual textures
+    /// Actual texture
     Texture(RgbaImage),
 }
 
@@ -31,9 +31,13 @@ pub struct KdMap {
 
 impl KdMap {
     /// Find the [`RgbaImage`] whose overall color is "closest" to that of `query`.
-    #[inline]
     pub fn nearest(&self, query: &[f64; DIMENSIONS]) -> &RgbaImage {
-        let index = self.keys.nearest_one::<SquaredEuclidean>(query).item as usize;
+        let index = self
+            .keys
+            .query(query)
+            .nearest_one::<SquaredEuclidean<f64>>()
+            .execute()
+            .item as usize;
         &self.values[index]
     }
 }
@@ -42,10 +46,9 @@ impl<T> From<T> for KdMap
 where
     T: ParallelIterator<Item = ([f64; DIMENSIONS], RgbaImage)>,
 {
-    #[inline]
     fn from(value: T) -> Self {
         let (keys_src, values) = value.collect::<(Box<_>, Box<_>)>();
-        let keys = ImmutableKdTree::new_from_slice(&keys_src);
+        let keys = ImmutableKdTree::new_from_slice(&keys_src).unwrap();
         assert_eq!(keys.size(), values.len());
         Self { keys, values }
     }

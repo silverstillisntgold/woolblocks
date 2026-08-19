@@ -14,7 +14,7 @@ impl ClientJar {
     ///
     /// The program will panic if no match for `version_id` is found.
     pub fn new(version_id: Version) -> Self {
-        get_client_jar_as_bytes(version_id).into()
+        Self(get_client_jar_as_bytes(version_id))
     }
 
     /// Return a [`Vec`] containing all to-be-replaced textures and their
@@ -28,12 +28,6 @@ impl ClientJar {
         let jar_name = jar_path + CLIENT_JAR;
         let mut file = fs::File::create(jar_name).unwrap();
         file.write_all(&self.0).unwrap();
-    }
-}
-
-impl From<Box<[u8]>> for ClientJar {
-    fn from(value: Box<[u8]>) -> Self {
-        Self(value)
     }
 }
 
@@ -95,6 +89,7 @@ impl From<ClientJar> for (Vec<TextureData>, u64) {
 /// Extract the resource pack version from the raw bytes of `version.json`.
 fn version_json_to_version(buf: Vec<u8>) -> u64 {
     let json = String::from_utf8(buf).unwrap();
+    println!("{}", json);
     // It's fucking beautiful.
     serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&json)
         .unwrap()
@@ -102,7 +97,7 @@ fn version_json_to_version(buf: Vec<u8>) -> u64 {
         .unwrap()
         .as_object()
         .unwrap()
-        .get("resource")
+        .get("resource_major")
         .unwrap()
         .as_u64()
         .unwrap()
