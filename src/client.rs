@@ -1,4 +1,4 @@
-use crate::manifest::get_client_jar_as_bytes;
+use crate::manifest::get_client_jar_bytes;
 use crate::types::{FileData, TextureData};
 use crate::{CLIENT_JAR, EXCLUSIONS, INCLUSIONS, MCMETA_EXT, PNG_EXT, VERSION_JSON, Version};
 use image::{ImageFormat, load_from_memory_with_format};
@@ -14,7 +14,7 @@ impl ClientJar {
     ///
     /// The program will panic if no match for `version_id` is found.
     pub fn new(version_id: Version) -> Self {
-        Self(get_client_jar_as_bytes(version_id).unwrap())
+        Self(get_client_jar_bytes(version_id).unwrap())
     }
 
     /// Return a [`Vec`] containing all to-be-replaced textures and their

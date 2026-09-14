@@ -12,24 +12,33 @@ pub enum WoolError {
     #[error(transparent)]
     Http(#[from] ureq::Error),
 
-    #[error("")]
-    MismatchSha1Manifest,
-
-    #[error("")]
-    MismatchSha1Data,
-
-    #[error("")]
-    MismatchVersion,
-
-    #[error("invalid minnecraft version")]
+    #[error("invalid Minecraft version provided by user")]
     InvalidVersion,
 
     #[error(transparent)]
+    Io(#[from] std::io::Error),
+
+    #[error(transparent)]
     Json(#[from] serde_json::Error),
+
+    #[error(transparent)]
+    Mismatch(#[from] MismatchError),
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum MismatchError {
+    #[error("client JAR SHA-1 does not match manifest")]
+    ClientJarSha1,
+
+    #[error("version manifest SHA-1 does not match version index")]
+    VersionManifestSha1,
+
+    #[error("version ID does not match requested version")]
+    VersionId,
 }
 
 pub enum Version<'a> {
-    Custom(&'a str),
+    Exact(&'a str),
     Release,
     Snapshot,
 }
