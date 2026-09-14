@@ -1,9 +1,32 @@
+#![forbid(unsafe_code)]
+
+pub use generators::{AllTextures, SingleTexture, TextureGenerator, Xbrz};
+
 mod client;
 mod generators;
 mod manifest;
 mod types;
 
-pub use generators::{AllTextures, SingleTexture, TextureGenerator, Xbrz};
+#[derive(Debug, thiserror::Error)]
+pub enum WoolError {
+    #[error(transparent)]
+    Http(#[from] ureq::Error),
+
+    #[error("")]
+    MismatchSha1Manifest,
+
+    #[error("")]
+    MismatchSha1Data,
+
+    #[error("")]
+    MismatchVersion,
+
+    #[error("invalid minnecraft version")]
+    InvalidVersion,
+
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
+}
 
 pub enum Version<'a> {
     Custom(&'a str),

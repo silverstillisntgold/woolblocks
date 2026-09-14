@@ -14,7 +14,7 @@ impl ClientJar {
     ///
     /// The program will panic if no match for `version_id` is found.
     pub fn new(version_id: Version) -> Self {
-        Self(get_client_jar_as_bytes(version_id))
+        Self(get_client_jar_as_bytes(version_id).unwrap())
     }
 
     /// Return a [`Vec`] containing all to-be-replaced textures and their

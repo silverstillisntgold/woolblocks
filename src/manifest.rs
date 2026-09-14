@@ -1,4 +1,4 @@
-use crate::{MANIFEST_URL, Version};
+use crate::{MANIFEST_URL, Version, WoolError};
 use serde::Deserialize;
 use sha1_smol::Sha1;
 use ureq::get as https_get;
@@ -24,6 +24,7 @@ struct VersionData {
 
 #[derive(Deserialize)]
 struct PackageManifest {
+    id: String,
     downloads: DownloadData,
 }
 
@@ -39,63 +40,65 @@ struct ClientData {
 }
 
 /// Return the raw bytes of the client jar for the passed `version_id`.
-pub fn get_client_jar_as_bytes(version_id: Version) -> Box<[u8]> {
-    let version = get_version(version_id);
-    let client_data = get_client_data(version);
+#[inline(never)]
+pub fn get_client_jar_as_bytes(version_id: Version) -> Result<Box<[u8]>, WoolError> {
+    let version = get_version(version_id)?;
+    let client_data = get_client_data(version)?;
     get_raw_client_bytes(client_data)
 }
 
-fn get_version(version_id: Version) -> VersionData {
+fn get_version(version_id: Version) -> Result<VersionData, WoolError> {
     let version_manifest = https_get(MANIFEST_URL)
-        .call()
-        .unwrap()
+        .call()?
         .into_body()
-        .read_json::<VersionManifestV2>()
-        .unwrap();
-    // Invalid `Custom` variant will cause a panic.
+        .read_json::<VersionManifestV2>()?;
+
+    // Cache this here so we avoid having a `match` statement in our `find` loop.
     let target_version = match version_id {
         Version::Custom(version) => version,
-        Version::Release => version_manifest.latest.release.as_str(),
-        Version::Snapshot => version_manifest.latest.snapshot.as_str(),
+        Version::Release => &version_manifest.latest.release,
+        Version::Snapshot => &version_manifest.latest.snapshot,
     };
+
+    // Not bothering to use rayon because there aren't enough Minecraft
+    // version to make a tangible difference in search speed.
+    // It's also most likely that packs will be generated for newer versions, which
+    // are at the front of `versions` and will be found [almost] immediately.
     version_manifest
         .versions
         .into_iter()
-        .find(|v| v.id.as_str().eq(target_version))
-        .expect("the `version_id` provided should be a valid minecraft version")
+        .find(|version| version.id.eq(target_version))
+        .ok_or(WoolError::InvalidVersion)
 }
 
-fn get_client_data(version: VersionData) -> ClientData {
-    let package_manifest_bytes = https_get(&version.url)
-        .call()
-        .unwrap()
-        .into_body()
-        .read_to_vec()
-        .unwrap();
-    let package_manifest_hash = Sha1::from(&package_manifest_bytes).digest().to_string();
-    assert!(
-        version.sha1 == package_manifest_hash,
-        "sha1 validation of package manifest failed"
-    );
-    serde_json::from_slice::<PackageManifest>(&package_manifest_bytes)
-        .unwrap()
-        .downloads
-        .client
+fn get_client_data(version: VersionData) -> Result<ClientData, WoolError> {
+    let package_manifest_bytes = https_get(&version.url).call()?.into_body().read_to_vec()?;
+
+    let package_manifest_sha1 = Sha1::from(&package_manifest_bytes).digest().to_string();
+    if version.sha1 != package_manifest_sha1 {
+        return Err(WoolError::MismatchSha1Manifest);
+    }
+
+    let package_manifest = serde_json::from_slice::<PackageManifest>(&package_manifest_bytes)?;
+    if version.id != package_manifest.id {
+        return Err(WoolError::MismatchVersion);
+    }
+
+    Ok(package_manifest.downloads.client)
 }
 
-fn get_raw_client_bytes(client_data: ClientData) -> Box<[u8]> {
+fn get_raw_client_bytes(client_data: ClientData) -> Result<Box<[u8]>, WoolError> {
     let client_bytes = https_get(&client_data.url)
-        .call()
-        .unwrap()
+        .call()?
         .into_body()
         .into_with_config()
-        .limit(u32::MAX as u64)
-        .read_to_vec()
-        .unwrap();
-    let client_hash = Sha1::from(&client_bytes).digest().to_string();
-    assert_eq!(
-        client_data.sha1, client_hash,
-        "sha1 validation of client jar failed"
-    );
-    client_bytes.into_boxed_slice()
+        .limit(i32::MAX as u64)
+        .read_to_vec()?;
+
+    let client_sha1 = Sha1::from(&client_bytes).digest().to_string();
+    if client_data.sha1 != client_sha1 {
+        return Err(WoolError::MismatchSha1Data);
+    }
+
+    Ok(client_bytes.into_boxed_slice())
 }
