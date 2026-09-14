@@ -1,6 +1,6 @@
 use crate::{MANIFEST_URL, Version, WoolError};
 use serde::Deserialize;
-use sha1_smol::Sha1;
+use sha1_smol::{Digest, Sha1};
 use ureq::get as https_get;
 
 #[derive(Deserialize)]
@@ -18,7 +18,7 @@ struct LatestData {
 #[derive(Deserialize)]
 struct VersionData {
     id: String,
-    sha1: String,
+    sha1: Digest,
     url: String,
 }
 
@@ -35,7 +35,7 @@ struct DownloadData {
 
 #[derive(Deserialize)]
 struct ClientData {
-    sha1: String,
+    sha1: Digest,
     url: String,
 }
 
@@ -74,7 +74,7 @@ fn get_version(version_id: Version) -> Result<VersionData, WoolError> {
 fn get_client_data(version: VersionData) -> Result<ClientData, WoolError> {
     let package_manifest_bytes = https_get(&version.url).call()?.into_body().read_to_vec()?;
 
-    let package_manifest_sha1 = Sha1::from(&package_manifest_bytes).digest().to_string();
+    let package_manifest_sha1 = Sha1::from(&package_manifest_bytes).digest();
     if version.sha1 != package_manifest_sha1 {
         return Err(WoolError::MismatchSha1Manifest);
     }
@@ -95,7 +95,7 @@ fn get_raw_client_bytes(client_data: ClientData) -> Result<Box<[u8]>, WoolError>
         .limit(i32::MAX as u64)
         .read_to_vec()?;
 
-    let client_sha1 = Sha1::from(&client_bytes).digest().to_string();
+    let client_sha1 = Sha1::from(&client_bytes).digest();
     if client_data.sha1 != client_sha1 {
         return Err(WoolError::MismatchSha1Data);
     }
