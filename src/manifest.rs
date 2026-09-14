@@ -61,7 +61,7 @@ fn get_version(version_id: Version) -> Result<VersionData, WoolError> {
     };
 
     // Not bothering to use rayon because there aren't enough Minecraft
-    // version to make a tangible difference in search speed.
+    // versions to make a tangible difference in search speed.
     // It's also most likely that packs will be generated for newer versions, which
     // are at the front of `versions` and will be found [almost] immediately.
     version_manifest
