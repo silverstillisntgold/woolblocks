@@ -113,8 +113,8 @@ fn get_url_body(url: &str) -> Result<Vec<u8>, WoolError> {
         .body()
         .content_length()
         .map(|len| len.min(LIMIT))
-        .unwrap_or(LIMIT);
-    let mut buf = Vec::with_capacity(capacity as usize);
+        .unwrap_or(LIMIT) as usize;
+    let mut buf = Vec::with_capacity(capacity);
 
     response
         .into_body()
