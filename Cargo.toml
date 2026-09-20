@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+bon = "3.10"
+camino = "1.2"
 image = { version = "0.25", default-features = false, features = ["png", "rayon"] }
 kiddo = { version = "6.3", default-features = false, features = ["multi-threaded"] }
 rayon = "1.12"

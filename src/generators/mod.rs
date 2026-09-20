@@ -1,10 +1,12 @@
-mod all_textures;
-mod single_texture;
-mod xbrz;
+// pub use all_textures::AllTextures;
+// pub use single_texture::SingleTexture;
+// pub use xbrz::Xbrz;
 
-use crate::client::ClientJar;
-use crate::types::{FileData, KdMap, TextureData};
-use crate::{PACK_MCMETA, SIZE, Version};
+use crate::{
+    FileData, OUTPUT_DIR, PACK_MCMETA, SIZE, TextureData, WoolError, ZIP_EXT,
+    client::ClientFetcher, kdmap::KdMap,
+};
+use camino::{Utf8Path, Utf8PathBuf};
 use image::codecs::png::{CompressionType, FilterType, PngEncoder};
 use image::{Pixel, Rgba, RgbaImage};
 use rayon::prelude::*;
@@ -14,145 +16,158 @@ use std::path;
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipWriter};
 
-pub use all_textures::AllTextures;
-pub use single_texture::SingleTexture;
-pub use xbrz::Xbrz;
+// mod all_textures;
+// mod single_texture;
+// mod xbrz;
 
-/// The massa trait for generating textures, which will be exposed
-/// to the end-user through a CLI interface in main.
+/// Massa trait for generating textures.
 pub trait TextureGenerator {
-    fn generate(self, path: &str, version_id: Version, write_dir: bool, write_jar: bool);
+    fn generate(self, client_fetcher: ClientFetcher, write_dir: bool) -> Result<(), WoolError>;
 }
 
-impl<T: InternalGenerator> TextureGenerator for T {
-    fn generate(self, path: &str, version_id: Version, write_dir: bool, write_jar: bool) {
-        let path = path.to_string() + Self::GENERATOR_NAME + "/";
-        fs::create_dir_all(&path).unwrap();
-        let client_jar = ClientJar::new(version_id);
-        if write_jar {
-            client_jar.write(path.clone());
+impl<T> TextureGenerator for T
+where
+    T: InternalGenerator,
+{
+    fn generate(self, client_fetcher: ClientFetcher, write_dir: bool) -> Result<(), WoolError> {
+        if fs::exists(OUTPUT_DIR)? {
+            fs::remove_dir_all(OUTPUT_DIR)?;
         }
-        let (old_textures, version) = client_jar.parse();
+        fs::create_dir(OUTPUT_DIR)?;
+
+        let (old_textures, pack_version) = client_fetcher.fetch()?;
+
         // This shit is aids. FUCK.
         let pack_mcmeta = format!(
             "\
 {{
-  \"pack\": {{
-    \"description\": \"TRULY THE GREATEST TEXTURE PACK OF ALL TIME!!!\",
-    \"pack_format\": {}
-  }}
+    \"pack\": {{
+        \"description\": \"THE GREATEST TEXTURE PACK OF ALL TIME!!!\",
+            \"min_format\": {}
+            \"max_format\": {}
+    }}
 }}\n",
-            version
+            pack_version, pack_version
         )
         .into_bytes();
+
         let new_textures = self.modify_textures(old_textures);
+
+        let mut path = Utf8PathBuf::from(OUTPUT_DIR);
+        path.push(self.generator_name());
+
         if write_dir {
-            let path = path.clone() + "pack_output/";
-            fs::create_dir_all(&path).unwrap();
-            self.write(path, &new_textures, &pack_mcmeta);
+            fs::create_dir(path.as_std_path())?;
+            self.write(&path, &new_textures, &pack_mcmeta)?;
         }
-        let zip_name = path + Self::GENERATOR_NAME + ".zip";
-        self.zip(zip_name, &new_textures, &pack_mcmeta);
+
+        path.add_extension(ZIP_EXT);
+        self.zip(&path, &new_textures, &pack_mcmeta)?;
+
+        Ok(())
     }
 }
 
 trait InternalGenerator {
-    const GENERATOR_NAME: &str;
+    fn generator_name(&self) -> &'static str;
 
-    fn modify_textures(&self, textures: Vec<TextureData>) -> Vec<TextureData>;
+    fn modify_textures(&self, textures: Box<[TextureData]>) -> Box<[TextureData]>;
 
-    fn zip(&self, zip_name: String, textures: &[TextureData], pack_mcmeta: &[u8]) {
-        let inner = fs::File::create(zip_name).unwrap();
-        let mut zip = ZipWriter::new(inner);
-        let options = SimpleFileOptions::default().compression_method(CompressionMethod::Stored);
-        zip.start_file(PACK_MCMETA, options).unwrap();
-        zip.write_all(pack_mcmeta).unwrap();
-        textures.iter().for_each(|texture_data| {
-            zip.start_file(&texture_data.path, options).unwrap();
-            let buf = match &texture_data.file {
-                FileData::Texture(texture) => {
-                    let mut buf = Vec::with_capacity(texture.len());
-                    let enc = PngEncoder::new_with_quality(
-                        &mut buf,
-                        CompressionType::Best,
-                        FilterType::Adaptive,
-                    );
-                    texture.write_with_encoder(enc).unwrap();
-                    buf
-                }
-                FileData::McMeta(data) => data.clone().into_vec(),
-            };
-            zip.write_all(&buf).unwrap();
-        });
-        zip.finish().unwrap();
+    fn write(
+        &self,
+        path: &Utf8Path,
+        textures: &[TextureData],
+        pack_mcmeta: &[u8],
+    ) -> Result<(), WoolError> {
+        let mut pack_mcmeta_path = path.to_path_buf();
+        pack_mcmeta_path.push(PACK_MCMETA);
+        fs::write(pack_mcmeta_path, pack_mcmeta)?;
+
+        for texture_data in textures {
+            let mut file_path = path.to_path_buf();
+            file_path.push(&texture_data.path);
+            fs::create_dir_all(&file_path)?;
+
+            let buf = texture_data.file_data()?;
+
+            fs::write(file_path, buf)?;
+        }
+
+        Ok(())
     }
 
-    fn write(&self, output_path: String, textures: &[TextureData], pack_mcmeta: &[u8]) {
-        fs::write(output_path.to_string() + PACK_MCMETA, pack_mcmeta).unwrap();
-        textures.into_par_iter().for_each(|texture_data| {
-            let path = output_path.clone() + texture_data.path.as_str();
-            let tmp = path::Path::new(&path).parent().unwrap();
-            fs::create_dir_all(tmp).unwrap();
-            match &texture_data.file {
-                FileData::Texture(texture) => {
-                    let f = fs::File::create(path).unwrap();
-                    let enc = PngEncoder::new_with_quality(
-                        f,
-                        CompressionType::Best,
-                        FilterType::Adaptive,
-                    );
-                    texture.write_with_encoder(enc).unwrap();
-                }
-                FileData::McMeta(data) => fs::write(path, data).unwrap(),
-            };
-        });
+    fn zip(
+        &self,
+        path: &Utf8Path,
+        textures: &[TextureData],
+        pack_mcmeta: &[u8],
+    ) -> Result<(), WoolError> {
+        let inner = fs::File::create(path)?;
+        let mut zip = ZipWriter::new(inner);
+        let options = SimpleFileOptions::default().compression_method(CompressionMethod::Stored);
+
+        zip.start_file(PACK_MCMETA, options)?;
+        zip.write_all(pack_mcmeta)?;
+
+        for texture_data in textures {
+            zip.start_file(&texture_data.path, options)?;
+
+            let buf = texture_data.file_data()?;
+
+            zip.write_all(&buf)?;
+        }
+
+        zip.finish()?;
+
+        Ok(())
     }
 }
 
 trait MappingGenerator {
     fn create_rgb_map(&self, textures: &[TextureData]) -> KdMap;
 
-    fn map(&self, textures: Vec<TextureData>, map: KdMap) -> Vec<TextureData> {
+    fn map(&self, map: KdMap, textures: Box<[TextureData]>) -> Box<[TextureData]> {
         textures
             .into_par_iter()
-            .map(TextureData::extract)
-            .map(|(file, path)| {
-                match file {
-                    FileData::Texture(texture) => {
-                        let old_width = texture.width();
-                        let old_height = texture.height();
-                        let new_width = old_width * SIZE;
-                        let new_height = old_height * SIZE;
-                        let mut new_image = RgbaImage::new(new_width, new_height);
-                        for (x, y, old_pixel) in texture.enumerate_pixels() {
-                            let query = old_pixel.to_rgb().0.map(f64::from);
-                            // Find the whole texture whose approximate average color
-                            // is closest to the current pixel.
-                            let closest_block = map.nearest(&query);
-                            let offset_x = x * SIZE;
-                            let offset_y = y * SIZE;
-                            for (d_x, d_y, closest_pixel) in closest_block.enumerate_pixels() {
-                                match old_pixel[3] != 0 {
-                                    true => {
-                                        let mut pixel = *closest_pixel;
-                                        pixel[3] = old_pixel[3];
-                                        new_image.put_pixel(offset_x + d_x, offset_y + d_y, pixel);
-                                    }
-                                    false => {
-                                        new_image.put_pixel(
-                                            offset_x + d_x,
-                                            offset_y + d_y,
-                                            Rgba::from([0, 0, 0, 0]),
-                                        );
-                                    }
-                                }
-                            }
+            .map(|texture_data| (texture_data.file, texture_data.path))
+            .map(|(file, path)| match file {
+                FileData::Texture(texture) => {
+                    let old_width = texture.width();
+                    let old_height = texture.height();
+                    let new_width = old_width * SIZE;
+                    let new_height = old_height * SIZE;
+                    let mut new_image = RgbaImage::new(new_width, new_height);
+
+                    for (x, y, old_pixel) in texture.enumerate_pixels() {
+                        // Find the whole texture whose approximate average color is closest to the current pixel.
+                        let query = old_pixel.to_rgb().0.map(f64::from);
+                        let closest_block = map.find_most_similar(&query);
+
+                        let offset_x = x * SIZE;
+                        let offset_y = y * SIZE;
+                        for (d_x, d_y, closest_pixel) in closest_block.enumerate_pixels() {
+                            let x = offset_x + d_x;
+                            let y = offset_y + d_y;
+
+                            let pixel = if old_pixel[3] != 0 {
+                                let mut pixel = *closest_pixel;
+                                pixel[3] = old_pixel[3];
+                                pixel
+                            } else {
+                                Rgba::from([0, 0, 0, 0])
+                            };
+
+                            new_image.put_pixel(x, y, pixel);
                         }
-                        let file = FileData::Texture(new_image);
-                        TextureData { file, path }
                     }
-                    FileData::McMeta(_) => TextureData { file, path },
+
+                    TextureData {
+                        file: FileData::Texture(new_image),
+                        path,
+                    }
                 }
+
+                FileData::McMeta(_) => TextureData { file, path },
             })
             .collect()
     }

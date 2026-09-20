@@ -1,104 +1,124 @@
-use crate::manifest::get_client_jar_bytes;
-use crate::types::{FileData, TextureData};
-use crate::{CLIENT_JAR, EXCLUSIONS, INCLUSIONS, MCMETA_EXT, PNG_EXT, VERSION_JSON, Version};
+use crate::{
+    EXCLUSIONS, FileData, INCLUSIONS, JSON_EXT, MCMETA_EXT, PNG_EXT, TextureData, VERSION_JSON,
+    Version, WoolError, manifest::get_client_jar_bytes,
+};
+use camino::Utf8PathBuf;
 use image::{ImageFormat, load_from_memory_with_format};
-use std::fs;
-use std::io::{Cursor, Read, Write};
+use serde::Deserialize;
+use std::io::{Cursor, Read};
 use zip::ZipArchive;
 
-/// Wraps the raw bytes of a client jar.
-pub struct ClientJar(Box<[u8]>);
+/// Fetches the raw bytes of a client.
+#[derive(bon::Builder)]
+pub struct ClientFetcher<'a> {
+    /// The file path patterns that should be excluded when building the texture pack list.
+    exclusions: Option<&'a [&'a str]>,
 
-impl ClientJar {
-    /// Create a new [`ClientJar`] from the user-provided `version_id`.
-    ///
-    /// The program will panic if no match for `version_id` is found.
-    pub fn new(version_id: Version) -> Self {
-        Self(get_client_jar_bytes(version_id).unwrap())
-    }
+    /// The file path patterns that should be included when building the texture pack list.
+    inclusions: &'a [&'a str],
 
-    /// Return a [`Vec`] containing all to-be-replaced textures and their
-    /// associated paths, as well as the resource pack version.
-    pub fn parse(self) -> (Vec<TextureData>, u64) {
-        self.into()
-    }
+    /// The version of Minecraft whose textures should be fetched.
+    version: Version<'a>,
+}
 
-    /// Write client jar data to `jar_dir`.
-    pub fn write(&self, jar_path: String) {
-        let jar_name = jar_path + CLIENT_JAR;
-        let mut file = fs::File::create(jar_name).unwrap();
-        file.write_all(&self.0).unwrap();
+impl<'a> Default for ClientFetcher<'a> {
+    fn default() -> Self {
+        Self::builder()
+            .exclusions(EXCLUSIONS)
+            .inclusions(INCLUSIONS)
+            .version(Version::Release)
+            .build()
     }
 }
 
-impl From<ClientJar> for (Vec<TextureData>, u64) {
-    fn from(value: ClientJar) -> Self {
-        let reader = Cursor::new(value.0);
-        let mut zip = ZipArchive::new(reader).unwrap();
-        let mut textures = Vec::with_capacity(zip.len());
-        let mut resource_pack_version = 0;
-        for file_number in 0..zip.len() {
-            let mut zipped_file = zip.by_index(file_number).unwrap();
-            if let Some(path) = zipped_file
-                .enclosed_name()
-                .map(|path| path.into_os_string().into_string().unwrap())
-                .filter(|path| {
-                    let is_included = INCLUSIONS.iter().any(|s| path.contains(s));
-                    let is_excluded = EXCLUSIONS.iter().any(|s| path.contains(s));
-                    is_included && !is_excluded
-                })
-            {
-                // Why the fuck doesn't .size() return a usize?
-                let mut buf = Vec::with_capacity(zipped_file.size() as usize);
-                let len = zipped_file.read_to_end(&mut buf).unwrap();
-                // This being true guarantees no reallocations were made during reading.
-                assert_eq!(buf.len(), len);
-                let (_, extension) = path.rsplit_once('.').unwrap_or_default();
-                match extension {
-                    PNG_EXT => {
-                        let img = load_from_memory_with_format(&buf, ImageFormat::Png)
-                            .unwrap()
-                            .into_rgba8();
-                        let file = FileData::Texture(img);
-                        textures.push(TextureData { file, path });
-                    }
-                    MCMETA_EXT => {
-                        let file = FileData::McMeta(buf.into_boxed_slice());
-                        textures.push(TextureData { file, path });
-                    }
-                    _ => {
-                        if path.ends_with(VERSION_JSON) {
+impl<'a> ClientFetcher<'a> {
+    #[inline(never)]
+    pub fn fetch(self) -> Result<(Box<[TextureData]>, u64), WoolError> {
+        let client_jar_bytes = get_client_jar_bytes(self.version)?;
+
+        // Our `zip_reader` needs `Read` + `Seek` traits so we have to
+        // wrap the jar byte buffer in a `Cursor`.
+        let reader = Cursor::new(client_jar_bytes);
+        let mut zip_reader = ZipArchive::new(reader)?;
+
+        // Provide a generous upper bound to avoid resizing during the loop.
+        let mut textures = Vec::with_capacity(zip_reader.len());
+        let mut pack_version = 0;
+
+        for file_number in 0..zip_reader.len() {
+            let mut file = zip_reader.by_index(file_number)?;
+
+            if let Some(path) = file.enclosed_name() {
+                let path = Utf8PathBuf::try_from(path)?;
+
+                let included = self.inclusions.iter().any(|inclusion| {
+                    path.components()
+                        .any(|component| component.as_str().eq(*inclusion))
+                });
+                let excluded = if let Some(exclusions) = self.exclusions {
+                    exclusions.iter().any(|exclusion| {
+                        path.components()
+                            .any(|component| component.as_str().eq(*exclusion))
+                    })
+                } else {
+                    // !false == true
+                    false
+                };
+
+                if included && !excluded {
+                    // Why the fuck doesn't .size() return a usize?
+                    let capacity = file.size() as usize;
+                    let mut buf = Vec::with_capacity(capacity);
+                    file.read_to_end(&mut buf)?;
+
+                    match path.extension() {
+                        // Actual textures.
+                        Some(PNG_EXT) => {
+                            let img =
+                                load_from_memory_with_format(&buf, ImageFormat::Png)?.into_rgba8();
+                            let file = FileData::Texture(img);
+
+                            textures.push(TextureData { file, path });
+                        }
+
+                        // McMeta files which are required for certain textures (fire, water, etc.)
+                        // to not be completely fucked up.
+                        Some(MCMETA_EXT) => {
+                            let file = FileData::McMeta(buf.into_boxed_slice());
+
+                            textures.push(TextureData { file, path });
+                        }
+
+                        // Need to use the `version.json` to acquire the major resource version.
+                        Some(JSON_EXT) if path.as_str().ends_with(VERSION_JSON) => {
                             assert_eq!(
-                                resource_pack_version, 0,
-                                "this branch should only be reachable a single time:\
-                                before the resource pack version has been read"
+                                pack_version, 0,
+                                "this branch should only be reachable a single time: before the resource pack version has been read"
                             );
-                            resource_pack_version = version_json_to_version(buf);
+
+                            #[derive(Deserialize)]
+                            struct VersionJson {
+                                pack_version: PackVersion,
+                            }
+
+                            #[derive(Deserialize)]
+                            struct PackVersion {
+                                resource_major: u64,
+                            }
+
+                            pack_version = serde_json::from_slice::<VersionJson>(&buf)?
+                                .pack_version
+                                .resource_major;
+                        }
+
+                        _ => {
+                            // Just ignore all the other shit.
                         }
                     }
                 }
             }
         }
-        // As of version 1.21.7, the initial allocation is over 26,000
-        // elements but the final length is only around 2,500.
-        textures.shrink_to_fit();
-        (textures, resource_pack_version)
-    }
-}
 
-/// Extract the resource pack version from the raw bytes of `version.json`.
-fn version_json_to_version(buf: Vec<u8>) -> u64 {
-    let json = String::from_utf8(buf).unwrap();
-    println!("{}", json);
-    // It's fucking beautiful.
-    serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&json)
-        .unwrap()
-        .get("pack_version")
-        .unwrap()
-        .as_object()
-        .unwrap()
-        .get("resource_major")
-        .unwrap()
-        .as_u64()
-        .unwrap()
+        Ok((textures.into_boxed_slice(), pack_version))
+    }
 }

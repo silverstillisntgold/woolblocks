@@ -1,6 +1,7 @@
 use crate::{MANIFEST_URL, MismatchError, Version, WoolError};
 use serde::Deserialize;
 use sha1_smol::{Digest, Sha1};
+use std::io::Read;
 
 #[derive(Deserialize)]
 struct VersionManifestV2 {
@@ -99,8 +100,6 @@ fn get_raw_client_bytes(client_data: ClientData) -> Result<Box<[u8]>, WoolError>
 /// so we need to do it ourselves.
 #[inline(never)]
 fn get_url_body(url: &str) -> Result<Vec<u8>, WoolError> {
-    use std::io::Read;
-
     // Effectively unlimited for the expected JAR size (<50MB).
     const LIMIT: u64 = 1 << 29;
 

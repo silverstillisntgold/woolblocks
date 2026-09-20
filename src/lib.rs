@@ -1,45 +1,63 @@
-#![allow(unused)]
 #![forbid(unsafe_code)]
 
 //pub use generators::{AllTextures, SingleTexture, TextureGenerator, Xbrz};
 
-mod client;
-//mod generators;
-mod kdmap;
+use camino::Utf8PathBuf;
+use image::{
+    RgbaImage,
+    codecs::png::{CompressionType, FilterType, PngEncoder},
+};
+
+pub mod client;
+pub mod generators;
+pub mod kdmap;
 mod manifest;
 
 const CLIENT_JAR: &str = "client.jar";
 const EXCLUSIONS: &[&str] = &[
-    "/color_palettes/", // Subdirectory of "trims"
+    "color_palettes", // Subdirectory of "trims"
 ];
 const INCLUSIONS: &[&str] = &[
-    "/block/",      // Block textures
-    "/entity/",     // Entity textures
-    "/item/",       // Handheld item textures
-    "/mob_effect/", // Status effect textures
+    // Paths
+    "block",      // Block textures
+    "entity",     // Entity textures
+    "item",       // Handheld item textures
+    "mob_effect", // Status effect textures
+    "trims",      // Armor trim textures
+    // Files
     "pack.png",     // Texture pack icon
-    "/trims/",      // Armor trim textures
     "version.json", // Texture pack version
 ];
+const JSON_EXT: &str = "json";
 const MANIFEST_URL: &str = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
 const MCMETA_EXT: &str = "mcmeta";
 const PACK_MCMETA: &str = "pack.mcmeta";
 const PNG_EXT: &str = "png";
 const SIZE: u32 = 16;
+const OUTPUT_DIR: &str = "generated";
 const VERSION_JSON: &str = INCLUSIONS.last().unwrap();
-
-pub fn testing() -> Result<Box<[u8]>, WoolError> {
-    manifest::get_client_jar_bytes(Version::Release)
-}
+const ZIP_EXT: &str = "zip";
 
 pub struct TextureData {
-    pub file: FileData,
-    pub path: String,
+    file: FileData,
+    path: Utf8PathBuf,
 }
 
 impl TextureData {
-    pub fn extract(self) -> (FileData, String) {
-        (self.file, self.path)
+    fn file_data(&self) -> Result<Vec<u8>, WoolError> {
+        match &self.file {
+            FileData::Texture(texture) => {
+                let mut buf = Vec::with_capacity(texture.len());
+                let enc = PngEncoder::new_with_quality(
+                    &mut buf,
+                    CompressionType::Best,
+                    FilterType::Adaptive,
+                );
+                texture.write_with_encoder(enc)?;
+                Ok(buf)
+            }
+            FileData::McMeta(metadata) => Ok(metadata.clone().into_vec()),
+        }
     }
 }
 
@@ -48,7 +66,7 @@ pub enum FileData {
     McMeta(Box<[u8]>),
 
     /// Actual texture.
-    Texture(image::RgbaImage),
+    Texture(RgbaImage),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -75,7 +93,7 @@ pub enum WoolError {
     Mismatch(#[from] MismatchError),
 
     #[error(transparent)]
-    Utf8(#[from] std::string::FromUtf8Error),
+    Utf8(#[from] camino::FromPathBufError),
 
     #[error(transparent)]
     Zip(#[from] zip::result::ZipError),
@@ -86,6 +104,9 @@ pub enum MismatchError {
     #[error("client JAR SHA-1 does not match manifest")]
     ClientJarSha1,
 
+    #[error("`keys` and `values` should always have the same length")]
+    KdMapLength,
+
     #[error("version manifest SHA-1 does not match version index")]
     VersionManifestSha1,
 
@@ -94,7 +115,12 @@ pub enum MismatchError {
 }
 
 pub enum Version<'a> {
+    /// A specific Minecaft version.
     Exact(&'a str),
+
+    /// The latest Minecraft release.
     Release,
+
+    /// The latest Minecraft snapshot.
     Snapshot,
 }

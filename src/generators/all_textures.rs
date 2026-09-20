@@ -68,24 +68,31 @@ impl MappingGenerator for AllTextures {
 }
 
 fn calculate_average(texture: &RgbaImage) -> Option<[f64; 3]> {
-    let pixel_count = (texture.width() * texture.height()) as f64;
-    let mut r_sum = 0.0;
-    let mut g_sum = 0.0;
-    let mut b_sum = 0.0;
+    if texture.is_empty() {
+        return None;
+    }
+
+    let mut r_sum = 0;
+    let mut g_sum = 0;
+    let mut b_sum = 0;
+
     for pixel in texture.pixels() {
         // Immediately terminate on transparent pixel.
-        match pixel[3] != 0 {
-            true => {
-                r_sum += pixel[0] as f64;
-                g_sum += pixel[1] as f64;
-                b_sum += pixel[2] as f64;
-            }
-            false => return None,
+        if pixel[3] == 0 {
+            core::hint::cold_path();
+            return None;
         }
+
+        r_sum += pixel[0] as u64;
+        g_sum += pixel[1] as u64;
+        b_sum += pixel[2] as u64;
     }
+
+    let pixel_count = texture.width() as f64 * texture.height() as f64;
+
     Some([
-        r_sum / pixel_count,
-        g_sum / pixel_count,
-        b_sum / pixel_count,
+        r_sum as f64 / pixel_count,
+        g_sum as f64 / pixel_count,
+        b_sum as f64 / pixel_count,
     ])
 }
