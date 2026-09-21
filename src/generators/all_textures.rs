@@ -1,6 +1,7 @@
 use super::{InternalGenerator, MappingGenerator, SIZE};
 use crate::INCLUSIONS;
-use crate::types::{FileData, KdMap, TextureData};
+use crate::kdmap::KdMap;
+use crate::{FileData, TextureData};
 use image::RgbaImage;
 use rayon::prelude::*;
 
@@ -42,17 +43,19 @@ const LOCAL_EXCLUSIONS: &[&str] = &[
 pub struct AllTextures;
 
 impl InternalGenerator for AllTextures {
-    const GENERATOR_NAME: &str = "pixelblocks";
+    fn generator_name(&self) -> &'static str {
+        "pixelblocks"
+    }
 
-    fn modify_textures(&self, textures: Vec<TextureData>) -> Vec<TextureData> {
+    fn modify_textures(&self, textures: Box<[TextureData]>) -> Box<[TextureData]> {
         let map = self.create_rgb_map(&textures);
-        self.map(textures, map)
+        self.map(map, textures)
     }
 }
 
 impl MappingGenerator for AllTextures {
     fn create_rgb_map(&self, textures: &[TextureData]) -> KdMap {
-        textures
+        let par_iter = textures
             .into_par_iter()
             .filter_map(|texture_date| match &texture_date.file {
                 FileData::Texture(texture) => Some((texture, &texture_date.path)),
@@ -60,10 +63,13 @@ impl MappingGenerator for AllTextures {
             })
             .filter(|(texture, _)| texture.width() == SIZE && texture.height() == SIZE)
             .filter(|(_, path)| {
-                path.contains(INCLUSIONS[0]) && LOCAL_EXCLUSIONS.iter().all(|t| !path.contains(t))
+                path.as_str().contains(INCLUSIONS[0])
+                    && LOCAL_EXCLUSIONS.iter().all(|t| !path.as_str().contains(t))
             })
             .filter_map(|(texture, _)| calculate_average(texture).map(|avg| (avg, texture.clone())))
-            .into()
+            .collect::<Box<_>>();
+
+        KdMap::try_from_parallel_iter(par_iter).unwrap()
     }
 }
 

@@ -23,15 +23,19 @@ pub struct ClientFetcher<'a> {
 
 impl<'a> Default for ClientFetcher<'a> {
     fn default() -> Self {
-        Self::builder()
-            .exclusions(EXCLUSIONS)
-            .inclusions(INCLUSIONS)
-            .version(Version::Release)
-            .build()
+        Self::with_version(Version::Release)
     }
 }
 
 impl<'a> ClientFetcher<'a> {
+    pub fn with_version(version: Version<'a>) -> Self {
+        Self::builder()
+            .exclusions(EXCLUSIONS)
+            .inclusions(INCLUSIONS)
+            .version(version)
+            .build()
+    }
+
     #[inline(never)]
     pub fn fetch(self) -> Result<(Box<[TextureData]>, u64), WoolError> {
         let client_jar_bytes = get_client_jar_bytes(self.version)?;
@@ -61,7 +65,6 @@ impl<'a> ClientFetcher<'a> {
                             .any(|component| component.as_str().eq(*exclusion))
                     })
                 } else {
-                    // !false == true
                     false
                 };
 
@@ -112,7 +115,7 @@ impl<'a> ClientFetcher<'a> {
                         }
 
                         _ => {
-                            // Just ignore all the other shit.
+                            // Ignore all the other shit.
                         }
                     }
                 }

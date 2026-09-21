@@ -6,7 +6,7 @@ use std::io::Read;
 #[derive(Deserialize)]
 struct VersionManifestV2 {
     latest: LatestData,
-    versions: Vec<VersionData>,
+    versions: Box<[VersionData]>,
 }
 
 #[derive(Deserialize)]
@@ -24,8 +24,8 @@ struct VersionData {
 
 #[derive(Deserialize)]
 struct PackageManifest {
-    id: String,
     downloads: DownloadData,
+    id: String,
 }
 
 #[derive(Deserialize)]
@@ -93,13 +93,13 @@ fn get_raw_client_bytes(client_data: ClientData) -> Result<Box<[u8]>, WoolError>
         return Err(MismatchError::ClientJarSha1.into());
     }
 
-    Ok(client_bytes.into_boxed_slice())
+    Ok(client_bytes)
 }
 
 /// The [`ureq`] crate doesn't do any internal pre-allocation when fetching HTTP bodies,
 /// so we need to do it ourselves.
 #[inline(never)]
-fn get_url_body(url: &str) -> Result<Vec<u8>, WoolError> {
+fn get_url_body(url: &str) -> Result<Box<[u8]>, WoolError> {
     // Effectively unlimited for the expected JAR size (<50MB).
     const LIMIT: u64 = 1 << 29;
 
@@ -122,5 +122,5 @@ fn get_url_body(url: &str) -> Result<Vec<u8>, WoolError> {
         .reader()
         .read_to_end(&mut buf)?;
 
-    Ok(buf)
+    Ok(buf.into_boxed_slice())
 }

@@ -1,14 +1,14 @@
 #![allow(unused)]
 
 use std::{env, fs};
-use woolblocks::*;
-
-const OUTPUT_DIR: &str = "generated/";
+use woolblocks::{generators::TextureGenerator, *};
 
 fn main() {
-    let _x = client::ClientFetcher::default().fetch().unwrap();
+    let client_fetcher = client::ClientFetcher::default();
 
-    println!("{} | {}", _x.0.len(), _x.1);
+    generators::AllTextures
+        .generate(client_fetcher, true)
+        .unwrap();
 
     // let x = testing().unwrap();
     // fs::write(OUTPUT_DIR.to_owned() + "yes.jar", x).unwrap();

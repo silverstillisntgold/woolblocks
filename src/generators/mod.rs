@@ -1,4 +1,4 @@
-// pub use all_textures::AllTextures;
+pub use all_textures::AllTextures;
 // pub use single_texture::SingleTexture;
 // pub use xbrz::Xbrz;
 
@@ -7,16 +7,14 @@ use crate::{
     client::ClientFetcher, kdmap::KdMap,
 };
 use camino::{Utf8Path, Utf8PathBuf};
-use image::codecs::png::{CompressionType, FilterType, PngEncoder};
 use image::{Pixel, Rgba, RgbaImage};
 use rayon::prelude::*;
 use std::fs;
 use std::io::Write;
-use std::path;
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipWriter};
 
-// mod all_textures;
+mod all_textures;
 // mod single_texture;
 // mod xbrz;
 
@@ -86,7 +84,9 @@ trait InternalGenerator {
         for texture_data in textures {
             let mut file_path = path.to_path_buf();
             file_path.push(&texture_data.path);
-            fs::create_dir_all(&file_path)?;
+            if let Some(parent_path) = file_path.parent() {
+                fs::create_dir_all(parent_path)?;
+            }
 
             let buf = texture_data.file_data()?;
 
@@ -117,6 +117,7 @@ trait InternalGenerator {
             zip.write_all(&buf)?;
         }
 
+        // Explicitly finish the zip to avoid silent errors when dropping.
         zip.finish()?;
 
         Ok(())

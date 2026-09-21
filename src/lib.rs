@@ -13,7 +13,7 @@ pub mod generators;
 pub mod kdmap;
 mod manifest;
 
-const CLIENT_JAR: &str = "client.jar";
+//const CLIENT_JAR: &str = "client.jar";
 const EXCLUSIONS: &[&str] = &[
     "color_palettes", // Subdirectory of "trims"
 ];
