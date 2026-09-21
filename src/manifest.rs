@@ -51,7 +51,7 @@ fn get_version(version: Version) -> Result<VersionData, WoolError> {
     let version_manifest_bytes = get_url_body(MANIFEST_URL)?;
     let version_manifest = serde_json::from_slice::<VersionManifestV2>(&version_manifest_bytes)?;
 
-    // Cache this value so we avoid having a `match` statement in our `find` loop.
+    // Cache this value to avoid having a `match` statement in our `find` loop.
     let target_version_id = match version {
         Version::Exact(id) => id,
         Version::Release => &version_manifest.latest.release,

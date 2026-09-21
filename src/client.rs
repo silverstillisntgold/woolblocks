@@ -11,13 +11,13 @@ use zip::ZipArchive;
 /// Fetches the raw bytes of a client.
 #[derive(bon::Builder)]
 pub struct ClientFetcher<'a> {
-    /// The file path patterns that should be excluded when building the texture pack list.
+    /// File path patterns that should be excluded when building the texture pack list.
     exclusions: Option<&'a [&'a str]>,
 
-    /// The file path patterns that should be included when building the texture pack list.
+    /// File path patterns that should be included when building the texture pack list.
     inclusions: &'a [&'a str],
 
-    /// The version of Minecraft whose textures should be fetched.
+    /// Version of Minecraft whose textures should be fetched.
     version: Version<'a>,
 }
 
@@ -55,6 +55,7 @@ impl<'a> ClientFetcher<'a> {
             if let Some(path) = file.enclosed_name() {
                 let path = Utf8PathBuf::try_from(path)?;
 
+                // TODO: Test if doing this filtering elsewhere is faster.
                 let included = self.inclusions.iter().any(|inclusion| {
                     path.components()
                         .any(|component| component.as_str().eq(*inclusion))
@@ -77,9 +78,9 @@ impl<'a> ClientFetcher<'a> {
                     match path.extension() {
                         // Actual textures.
                         Some(PNG_EXT) => {
-                            let img =
+                            let image =
                                 load_from_memory_with_format(&buf, ImageFormat::Png)?.into_rgba8();
-                            let file = FileData::Texture(img);
+                            let file = FileData::Texture(image);
 
                             textures.push(TextureData { file, path });
                         }
@@ -92,7 +93,7 @@ impl<'a> ClientFetcher<'a> {
                             textures.push(TextureData { file, path });
                         }
 
-                        // Need to use the `version.json` to acquire the major resource version.
+                        // Use `version.json` to acquire the major resource version.
                         Some(JSON_EXT) if path.as_str().ends_with(VERSION_JSON) => {
                             assert_eq!(
                                 pack_version, 0,
@@ -114,9 +115,8 @@ impl<'a> ClientFetcher<'a> {
                                 .resource_major;
                         }
 
-                        _ => {
-                            // Ignore all the other shit.
-                        }
+                        // Ignore all the other shit.
+                        _ => {}
                     }
                 }
             }

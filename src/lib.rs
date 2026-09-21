@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 
-//pub use generators::{AllTextures, SingleTexture, TextureGenerator, Xbrz};
+pub use client::ClientFetcher;
+pub use generators::{AllTextures, TextureGenerator};
 
 use camino::Utf8PathBuf;
 use image::{
@@ -8,38 +9,40 @@ use image::{
     codecs::png::{CompressionType, FilterType, PngEncoder},
 };
 
-pub mod client;
-pub mod generators;
-pub mod kdmap;
+mod client;
+mod generators;
+mod kdmap;
 mod manifest;
 
-//const CLIENT_JAR: &str = "client.jar";
 const EXCLUSIONS: &[&str] = &[
-    "color_palettes", // Subdirectory of "trims"
+    "color_palettes", // Obnoxious subdirectory of "trims"
 ];
 const INCLUSIONS: &[&str] = &[
-    // Paths
+    // Paths: Both as source and as target textures
     "block",      // Block textures
     "entity",     // Entity textures
     "item",       // Handheld item textures
     "mob_effect", // Status effect textures
     "trims",      // Armor trim textures
-    // Files
+    // Files: These fuckers live at root so we have to specify them
     "pack.png",     // Texture pack icon
     "version.json", // Texture pack version
 ];
-const JSON_EXT: &str = "json";
+
 const MANIFEST_URL: &str = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
-const MCMETA_EXT: &str = "mcmeta";
-const PACK_MCMETA: &str = "pack.mcmeta";
-const PNG_EXT: &str = "png";
-const SIZE: u32 = 16;
 const OUTPUT_DIR: &str = "generated";
-const VERSION_JSON: &str = INCLUSIONS.last().unwrap();
+const PACK_MCMETA: &str = "pack.mcmeta";
+const SIZE: u32 = 16;
+const VERSION_JSON: &str = "version.json";
+
+const JSON_EXT: &str = "json";
+const MCMETA_EXT: &str = "mcmeta";
+const PNG_EXT: &str = "png";
 const ZIP_EXT: &str = "zip";
 
 pub struct TextureData {
     file: FileData,
+
     path: Utf8PathBuf,
 }
 
@@ -48,14 +51,17 @@ impl TextureData {
         match &self.file {
             FileData::Texture(texture) => {
                 let mut buf = Vec::with_capacity(texture.len());
+
                 let enc = PngEncoder::new_with_quality(
                     &mut buf,
                     CompressionType::Best,
                     FilterType::Adaptive,
                 );
                 texture.write_with_encoder(enc)?;
+
                 Ok(buf)
             }
+
             FileData::McMeta(metadata) => Ok(metadata.clone().into_vec()),
         }
     }
