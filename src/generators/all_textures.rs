@@ -66,10 +66,11 @@ impl MappingGenerator for AllTextures {
                 path.as_str().contains(INCLUSIONS[0])
                     && LOCAL_EXCLUSIONS.iter().all(|t| !path.as_str().contains(t))
             })
-            .filter_map(|(texture, _)| calculate_average(texture).map(|avg| (avg, texture.clone())))
-            .collect::<Box<_>>();
+            .filter_map(|(texture, _)| {
+                calculate_average(texture).map(|avg| (avg, texture.clone()))
+            });
 
-        KdMap::try_from_parallel_iter(par_iter).unwrap()
+        KdMap::try_from_par_iter(par_iter).unwrap()
     }
 }
 

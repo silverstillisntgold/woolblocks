@@ -96,8 +96,8 @@ fn get_raw_client_bytes(client_data: ClientData) -> Result<Box<[u8]>, WoolError>
     Ok(client_bytes)
 }
 
-/// The [`ureq`] crate doesn't do any internal pre-allocation when fetching HTTP bodies,
-/// so we need to do it ourselves.
+/// The [`ureq`] crate doesn't do any internal pre-allocation when fetching HTTP bodies
+/// (idk why not maybe they're retarded?), so we need to do it ourselves.
 #[inline(never)]
 fn get_url_body(url: &str) -> Result<Box<[u8]>, WoolError> {
     // Effectively unlimited for the expected JAR size (<50MB).

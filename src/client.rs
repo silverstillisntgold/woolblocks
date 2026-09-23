@@ -8,7 +8,7 @@ use serde::Deserialize;
 use std::io::{Cursor, Read};
 use zip::ZipArchive;
 
-/// Fetches the raw bytes of a client.
+/// Fetches the raw bytes of a client (obviously).
 #[derive(bon::Builder)]
 pub struct ClientFetcher<'a> {
     /// File path patterns that should be excluded when building the texture pack list.
@@ -28,7 +28,10 @@ impl<'a> Default for ClientFetcher<'a> {
 }
 
 impl<'a> ClientFetcher<'a> {
+    /// Provides reasonable exclusions and inclusions paired with the provided `version`.
+    /// If you want the latest stable release then use [`Self::default`].
     pub fn with_version(version: Version<'a>) -> Self {
+        // Builder syntax make me nut low-k.
         Self::builder()
             .exclusions(EXCLUSIONS)
             .inclusions(INCLUSIONS)
@@ -36,12 +39,13 @@ impl<'a> ClientFetcher<'a> {
             .build()
     }
 
+    /// Fetches and parses the chosen client jar.
     #[inline(never)]
     pub fn fetch(self) -> Result<(Box<[TextureData]>, u64), WoolError> {
         let client_jar_bytes = get_client_jar_bytes(self.version)?;
 
         // Our `zip_reader` needs `Read` + `Seek` traits so we have to
-        // wrap the jar byte buffer in a `Cursor`.
+        // wrap the jar byte buffer in a `Cursor`. Kinda gay but whatever.
         let reader = Cursor::new(client_jar_bytes);
         let mut zip_reader = ZipArchive::new(reader)?;
 
@@ -49,13 +53,22 @@ impl<'a> ClientFetcher<'a> {
         let mut textures = Vec::with_capacity(zip_reader.len());
         let mut pack_version = 0;
 
+        // YO DUMBASS WHY DO IT THIS WAY?!
+        //
+        // Unfortunately, parallelizing reading from a zip file is not really feasible (FUUUUCCCCKKKKK).
+        // We always have to hit each entry in the zip, and once we do, we may as well fully process it.
+        //
+        // I did try to do an initial serial pass which stored paths and cached the entry buffer
+        // for use in a second parallel (rayon) path, but that increased runtime by ~3x (bruh).
+        // The slowest part is almost certainly the buffer allocation to store each entry,
+        // and since this serial approach filters before allocating buffers there's far less memory
+        // allocations. The chuds were right: computation is cheap, memory is expensive.
         for file_number in 0..zip_reader.len() {
             let mut file = zip_reader.by_index(file_number)?;
 
             if let Some(path) = file.enclosed_name() {
                 let path = Utf8PathBuf::try_from(path)?;
 
-                // TODO: Test if doing this filtering elsewhere is faster.
                 let included = self.inclusions.iter().any(|inclusion| {
                     path.components()
                         .any(|component| component.as_str().eq(*inclusion))
@@ -69,54 +82,57 @@ impl<'a> ClientFetcher<'a> {
                     false
                 };
 
-                if included && !excluded {
-                    // Why the fuck doesn't .size() return a usize?
-                    let capacity = file.size() as usize;
-                    let mut buf = Vec::with_capacity(capacity);
-                    file.read_to_end(&mut buf)?;
+                // We do a little skipping :tf:
+                if !included || excluded {
+                    continue;
+                }
 
-                    match path.extension() {
-                        // Actual textures.
-                        Some(PNG_EXT) => {
-                            let image =
-                                load_from_memory_with_format(&buf, ImageFormat::Png)?.into_rgba8();
-                            let file = FileData::Texture(image);
+                // Why the fuck doesn't .size() return a usize?
+                let mut buf = Vec::with_capacity(file.size() as usize);
+                file.read_to_end(&mut buf)?;
 
-                            textures.push(TextureData { file, path });
+                match path.extension() {
+                    // Actual textures.
+                    Some(PNG_EXT) => {
+                        let image =
+                            load_from_memory_with_format(&buf, ImageFormat::Png)?.into_rgba8();
+                        let file = FileData::Texture(image);
+
+                        textures.push(TextureData { file, path });
+                    }
+
+                    // McMeta files which are required for certain textures (fire, water, etc.)
+                    // to not be completely fucked up.
+                    Some(MCMETA_EXT) => {
+                        let file = FileData::McMeta(buf.into_boxed_slice());
+
+                        textures.push(TextureData { file, path });
+                    }
+
+                    // Use `version.json` to acquire the major resource version.
+                    Some(JSON_EXT) if path.as_str().ends_with(VERSION_JSON) => {
+                        assert_eq!(
+                            pack_version, 0,
+                            "this branch should only be reachable a single time: before the resource pack version has been read"
+                        );
+
+                        #[derive(Deserialize)]
+                        struct VersionJson {
+                            pack_version: PackVersion,
                         }
 
-                        // McMeta files which are required for certain textures (fire, water, etc.)
-                        // to not be completely fucked up.
-                        Some(MCMETA_EXT) => {
-                            let file = FileData::McMeta(buf.into_boxed_slice());
-
-                            textures.push(TextureData { file, path });
+                        #[derive(Deserialize)]
+                        struct PackVersion {
+                            resource_major: u64,
                         }
 
-                        // Use `version.json` to acquire the major resource version.
-                        Some(JSON_EXT) if path.as_str().ends_with(VERSION_JSON) => {
-                            assert_eq!(
-                                pack_version, 0,
-                                "this branch should only be reachable a single time: before the resource pack version has been read"
-                            );
+                        pack_version = serde_json::from_slice::<VersionJson>(&buf)?
+                            .pack_version
+                            .resource_major;
+                    }
 
-                            #[derive(Deserialize)]
-                            struct VersionJson {
-                                pack_version: PackVersion,
-                            }
-
-                            #[derive(Deserialize)]
-                            struct PackVersion {
-                                resource_major: u64,
-                            }
-
-                            pack_version = serde_json::from_slice::<VersionJson>(&buf)?
-                                .pack_version
-                                .resource_major;
-                        }
-
+                    _ => {
                         // Ignore all the other shit.
-                        _ => {}
                     }
                 }
             }

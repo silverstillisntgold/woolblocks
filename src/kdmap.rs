@@ -5,10 +5,12 @@ use kiddo::{
     leaf_strategy::VecOfArenas,
     stem_strategy::Eytzinger,
 };
-use rayon::iter::{IndexedParallelIterator, IntoParallelIterator};
+use rayon::iter::ParallelIterator;
 
+/// How many nuts do we got?
 const DIMENSIONS: usize = 3;
 
+/// Whole lotta nuts.
 type KdeezNuts =
     KdTree<f64, usize, Eytzinger, VecOfArenas<f64, usize, DIMENSIONS, 32>, DIMENSIONS, 32>;
 
@@ -18,18 +20,12 @@ pub struct KdMap {
 }
 
 impl KdMap {
-    pub fn try_from_parallel_iter<T>(value: T) -> Result<Self, ConstructionError>
+    /// Just read the function name.
+    pub fn try_from_par_iter<T>(iter: T) -> Result<Self, ConstructionError>
     where
-        T: IntoParallelIterator,
-        T::Iter: IndexedParallelIterator<Item = ([f64; DIMENSIONS], RgbaImage)>,
+        T: ParallelIterator<Item = ([f64; DIMENSIONS], RgbaImage)>,
     {
-        const DEFAULT_CAPACITY: usize = 1 << 16;
-
-        let mut keys_source = Vec::with_capacity(DEFAULT_CAPACITY);
-        let mut values = Vec::with_capacity(DEFAULT_CAPACITY);
-        value
-            .into_par_iter()
-            .unzip_into_vecs(&mut keys_source, &mut values);
+        let (keys_source, values) = iter.collect::<(Box<_>, Box<_>)>();
 
         let keys = KdeezNuts::new_from_slice_parallel(&keys_source)?;
         assert_eq!(
@@ -38,12 +34,10 @@ impl KdMap {
             "`keys` and `values` should always have the same length"
         );
 
-        Ok(Self {
-            keys,
-            values: values.into_boxed_slice(),
-        })
+        Ok(Self { keys, values })
     }
 
+    /// You'll never guess what this does...
     pub fn find_most_similar(&self, query: &[f64; DIMENSIONS]) -> &RgbaImage {
         let index = self
             .keys

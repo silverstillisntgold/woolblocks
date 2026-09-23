@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use woolblocks::*;
 
 fn main() {
