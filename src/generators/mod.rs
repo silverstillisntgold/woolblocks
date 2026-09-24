@@ -9,10 +9,8 @@ use crate::{
 use camino::{Utf8Path, Utf8PathBuf};
 use image::{Pixel, Rgba, RgbaImage};
 use rayon::prelude::*;
-use std::fs;
-use std::io::Write;
-use zip::write::SimpleFileOptions;
-use zip::{CompressionMethod, ZipWriter};
+use std::{fs, io::Write};
+use zip::{CompressionMethod, ZipWriter, write::SimpleFileOptions};
 
 mod all_textures;
 // mod single_texture;
@@ -35,15 +33,15 @@ where
 
         let (old_textures, pack_version) = client_fetcher.fetch()?;
 
-        // This shit is aids. FUCK.
+        // This is kinda aids.
         let pack_mcmeta = format!(
             "\
 {{
-    \"pack\": {{
-        \"description\": \"THE GREATEST TEXTURE PACK OF ALL TIME!!!\",
-            \"min_format\": {}
-            \"max_format\": {}
-    }}
+  \"pack\": {{
+    \"description\": \"THE GREATEST TEXTURE PACK OF ALL TIME!!!\",
+    \"min_format\": {}
+    \"max_format\": {}
+  }}
 }}\n",
             pack_version, pack_version
         )
