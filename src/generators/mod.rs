@@ -38,7 +38,7 @@ where
             "\
 {{
   \"pack\": {{
-    \"description\": \"THE GREATEST TEXTURE PACK OF ALL TIME!!!\",
+    \"description\": \"THE GREATEST TEXTURE PACK OF ALL TIME!!\",
     \"min_format\": {}
     \"max_format\": {}
   }}
@@ -53,7 +53,6 @@ where
         path.push(self.generator_name());
 
         if write_dir {
-            fs::create_dir(path.as_std_path())?;
             self.write(&path, &new_textures, &pack_mcmeta)?;
         }
 
