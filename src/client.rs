@@ -3,7 +3,11 @@ use crate::{
     Version, WoolError, manifest::get_client_jar_bytes,
 };
 use camino::Utf8PathBuf;
-use image::{ImageFormat, load_from_memory_with_format};
+use image::{
+    ImageFormat,
+    codecs::png::{CompressionType, FilterType, PngEncoder},
+    load_from_memory_with_format,
+};
 use serde::Deserialize;
 use std::io::{Cursor, Read};
 use zip::ZipArchive;
@@ -39,7 +43,7 @@ impl<'a> ClientFetcher<'a> {
             .build()
     }
 
-    /// Fetches and parses the chosen client jar.
+    /// Fetches and parses the client jar, returning textures and the major resource pack version.
     #[inline(never)]
     pub fn fetch(self) -> Result<(Box<[TextureData]>, u64), WoolError> {
         let client_jar_bytes = get_client_jar_bytes(self.version)?;
@@ -96,7 +100,16 @@ impl<'a> ClientFetcher<'a> {
                     Some(PNG_EXT) => {
                         let image =
                             load_from_memory_with_format(&buf, ImageFormat::Png)?.into_rgba8();
-                        let file = FileData::Texture(image);
+
+                        let mut buf = Vec::with_capacity(image.len());
+                        image.write_with_encoder(PngEncoder::new_with_quality(
+                            &mut buf,
+                            CompressionType::Best,
+                            FilterType::Adaptive,
+                        ))?;
+                        let encoded_png = buf.into_boxed_slice();
+
+                        let file = FileData::Texture { encoded_png, image };
 
                         textures.push(TextureData { file, path });
                     }

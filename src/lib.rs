@@ -4,10 +4,7 @@ pub use client::ClientFetcher;
 pub use generators::{AllTextures, TextureGenerator};
 
 use camino::Utf8PathBuf;
-use image::{
-    RgbaImage,
-    codecs::png::{CompressionType, FilterType, PngEncoder},
-};
+use image::RgbaImage;
 
 mod client;
 mod generators;
@@ -42,29 +39,7 @@ const ZIP_EXT: &str = "zip";
 
 pub struct TextureData {
     file: FileData,
-
     path: Utf8PathBuf,
-}
-
-impl TextureData {
-    fn file_data(&self) -> Result<Vec<u8>, WoolError> {
-        match &self.file {
-            FileData::Texture(texture) => {
-                let mut buf = Vec::with_capacity(texture.len());
-
-                let enc = PngEncoder::new_with_quality(
-                    &mut buf,
-                    CompressionType::Best,
-                    FilterType::Adaptive,
-                );
-                texture.write_with_encoder(enc)?;
-
-                Ok(buf)
-            }
-
-            FileData::McMeta(metadata) => Ok(metadata.clone().into_vec()),
-        }
-    }
 }
 
 pub enum FileData {
@@ -72,7 +47,22 @@ pub enum FileData {
     McMeta(Box<[u8]>),
 
     /// Actual texture.
-    Texture(RgbaImage),
+    Texture {
+        encoded_png: Box<[u8]>,
+        image: RgbaImage,
+    },
+}
+
+impl FileData {
+    fn data(&self) -> &[u8] {
+        match self {
+            Self::Texture {
+                encoded_png,
+                image: _,
+            } => encoded_png,
+            Self::McMeta(data) => data,
+        }
+    }
 }
 
 #[derive(Debug, thiserror::Error)]

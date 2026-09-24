@@ -23,7 +23,7 @@ pub trait TextureGenerator {
 
 impl<T> TextureGenerator for T
 where
-    T: InternalGenerator,
+    T: InternalGenerator + Sync,
 {
     fn generate(self, client_fetcher: ClientFetcher, write_dir: bool) -> Result<(), WoolError> {
         if fs::exists(OUTPUT_DIR)? {
@@ -51,6 +51,23 @@ where
 
         let mut path = Utf8PathBuf::from(OUTPUT_DIR);
         path.push(self.generator_name());
+
+        // let (zip_result, write_result) = rayon::join(
+        //     || {
+        //         let mut zip_path = path.clone();
+        //         zip_path.add_extension(ZIP_EXT);
+        //         self.zip(&zip_path, &new_textures, &pack_mcmeta)
+        //     },
+        //     || {
+        //         if write_dir {
+        //             self.write(&path, &new_textures, &pack_mcmeta)
+        //         } else {
+        //             Ok(())
+        //         }
+        //     },
+        // );
+        // zip_result?;
+        // write_result?;
 
         if write_dir {
             self.write(&path, &new_textures, &pack_mcmeta)?;
@@ -85,7 +102,7 @@ trait InternalGenerator {
                 fs::create_dir_all(parent_path)?;
             }
 
-            let buf = texture_data.file_data()?;
+            let buf = texture_data.file.data();
 
             fs::write(file_path, buf)?;
         }
@@ -109,9 +126,9 @@ trait InternalGenerator {
         for texture_data in textures {
             zip.start_file(&texture_data.path, options)?;
 
-            let buf = texture_data.file_data()?;
+            let buf = texture_data.file.data();
 
-            zip.write_all(&buf)?;
+            zip.write_all(buf)?;
         }
 
         // Explicitly finish the zip to avoid silent errors when dropping.
@@ -129,7 +146,10 @@ trait MappingGenerator {
             .into_par_iter()
             .map(|texture_data| (texture_data.file, texture_data.path))
             .map(|(file, path)| match file {
-                FileData::Texture(texture) => {
+                FileData::Texture {
+                    encoded_png,
+                    image: texture,
+                } => {
                     let old_width = texture.width();
                     let old_height = texture.height();
                     let new_width = old_width * SIZE;
@@ -160,7 +180,10 @@ trait MappingGenerator {
                     }
 
                     TextureData {
-                        file: FileData::Texture(new_image),
+                        file: FileData::Texture {
+                            encoded_png,
+                            image: new_image,
+                        },
                         path,
                     }
                 }

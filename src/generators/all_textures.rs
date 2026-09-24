@@ -57,8 +57,11 @@ impl MappingGenerator for AllTextures {
     fn create_rgb_map(&self, textures: &[TextureData]) -> KdMap {
         let par_iter = textures
             .into_par_iter()
-            .filter_map(|texture_date| match &texture_date.file {
-                FileData::Texture(texture) => Some((texture, &texture_date.path)),
+            .filter_map(|texture_data| match &texture_data.file {
+                FileData::Texture {
+                    encoded_png: _,
+                    image: texture,
+                } => Some((texture, &texture_data.path)),
                 FileData::McMeta(_) => None,
             })
             .filter(|(texture, _)| texture.width() == SIZE && texture.height() == SIZE)
