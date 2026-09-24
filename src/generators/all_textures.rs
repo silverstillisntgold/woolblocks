@@ -1,7 +1,5 @@
 use super::{InternalGenerator, MappingGenerator, SIZE};
-use crate::INCLUSIONS;
-use crate::kdmap::KdMap;
-use crate::{FileData, TextureData};
+use crate::{FileData, TextureData, kdmap::KdMap};
 use image::RgbaImage;
 use rayon::prelude::*;
 
@@ -38,6 +36,8 @@ const LOCAL_EXCLUSIONS: &[&str] = &[
     "repeater",
     "test",
     "observer",
+    "target_side",
+    "target_top",
 ];
 
 pub struct AllTextures;
@@ -55,25 +55,23 @@ impl InternalGenerator for AllTextures {
 
 impl MappingGenerator for AllTextures {
     fn create_rgb_map(&self, textures: &[TextureData]) -> KdMap {
-        let par_iter = textures
+        textures
             .into_par_iter()
             .filter_map(|texture_data| match &texture_data.file {
-                FileData::Texture {
-                    encoded_png: _,
-                    image: texture,
-                } => Some((texture, &texture_data.path)),
-                FileData::McMeta(_) => None,
+                FileData::Texture(texture) => Some((texture, &texture_data.path)),
+                _ => None,
             })
             .filter(|(texture, _)| texture.width() == SIZE && texture.height() == SIZE)
             .filter(|(_, path)| {
-                path.as_str().contains(INCLUSIONS[0])
-                    && LOCAL_EXCLUSIONS.iter().all(|t| !path.as_str().contains(t))
+                // path.as_str().contains(INCLUSIONS[0])
+                //     && LOCAL_EXCLUSIONS.iter().all(|t| !path.as_str().contains(t))
+                LOCAL_EXCLUSIONS.iter().all(|exclusion| {
+                    path.components()
+                        .any(|component| component.as_str().ne(*exclusion))
+                })
             })
-            .filter_map(|(texture, _)| {
-                calculate_average(texture).map(|avg| (avg, texture.clone()))
-            });
-
-        KdMap::try_from_par_iter(par_iter).unwrap()
+            .filter_map(|(texture, _)| calculate_average(texture).map(|avg| (avg, texture.clone())))
+            .into()
     }
 }
 

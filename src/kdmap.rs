@@ -1,9 +1,6 @@
 use image::RgbaImage;
 use kiddo::{
-    dist::SquaredEuclidean,
-    kd_tree::{ConstructionError, KdTree},
-    leaf_strategy::VecOfArenas,
-    stem_strategy::Eytzinger,
+    dist::SquaredEuclidean, kd_tree::KdTree, leaf_strategy::VecOfArenas, stem_strategy::Eytzinger,
 };
 use rayon::iter::ParallelIterator;
 
@@ -19,25 +16,26 @@ pub struct KdMap {
     values: Box<[RgbaImage]>,
 }
 
-impl KdMap {
-    /// Just read the function name.
-    pub fn try_from_par_iter<T>(iter: T) -> Result<Self, ConstructionError>
-    where
-        T: ParallelIterator<Item = ([f64; DIMENSIONS], RgbaImage)>,
-    {
-        let (keys_source, values) = iter.collect::<(Box<_>, Box<_>)>();
+impl<T> From<T> for KdMap
+where
+    T: ParallelIterator<Item = ([f64; DIMENSIONS], RgbaImage)>,
+{
+    fn from(value: T) -> Self {
+        let (keys_source, values) = value.collect::<(Box<_>, Box<_>)>();
 
-        let keys = KdeezNuts::new_from_slice_parallel(&keys_source)?;
+        let keys = KdeezNuts::new_from_slice_parallel(&keys_source)
+            .expect("`KdMap` shouldn't fail initialization with our configuration");
         assert_eq!(
             keys.size(),
             values.len(),
             "`keys` and `values` should always have the same length"
         );
 
-        Ok(Self { keys, values })
+        Self { keys, values }
     }
+}
 
-    /// You'll never guess what this does...
+impl KdMap {
     pub fn find_most_similar(&self, query: &[f64; DIMENSIONS]) -> &RgbaImage {
         let index = self
             .keys

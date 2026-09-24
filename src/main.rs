@@ -1,8 +1,8 @@
-#![allow(unused)]
-
 use woolblocks::*;
 
-fn main() {
-    let client_fetcher = ClientFetcher::default();
-    AllTextures.generate(client_fetcher, true).unwrap();
+fn main() -> Result<(), WoolError> {
+    println!("Starting program");
+    AllTextures.generate(ClientFetcher::default(), true)?;
+    println!("Program complete");
+    Ok(())
 }

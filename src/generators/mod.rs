@@ -39,15 +39,18 @@ where
 {{
   \"pack\": {{
     \"description\": \"THE GREATEST TEXTURE PACK OF ALL TIME!!\",
-    \"min_format\": {}
-    \"max_format\": {}
+    \"min_format\": {},
+    \"max_format\": {},
   }}
 }}\n",
             pack_version, pack_version
         )
         .into_bytes();
 
-        let new_textures = self.modify_textures(old_textures);
+        let mut new_textures = self.modify_textures(old_textures);
+        new_textures
+            .par_iter_mut()
+            .try_for_each(|texture| texture.file.encode())?;
 
         let mut path = Utf8PathBuf::from(OUTPUT_DIR);
         path.push(self.generator_name());
@@ -70,6 +73,7 @@ where
         // write_result?;
 
         if write_dir {
+            fs::create_dir(&path)?;
             self.write(&path, &new_textures, &pack_mcmeta)?;
         }
 
@@ -146,15 +150,12 @@ trait MappingGenerator {
             .into_par_iter()
             .map(|texture_data| (texture_data.file, texture_data.path))
             .map(|(file, path)| match file {
-                FileData::Texture {
-                    encoded_png,
-                    image: texture,
-                } => {
+                FileData::Texture(texture) => {
                     let old_width = texture.width();
                     let old_height = texture.height();
                     let new_width = old_width * SIZE;
                     let new_height = old_height * SIZE;
-                    let mut new_image = RgbaImage::new(new_width, new_height);
+                    let mut new_texture = RgbaImage::new(new_width, new_height);
 
                     for (x, y, old_pixel) in texture.enumerate_pixels() {
                         // Find the whole texture whose approximate average color is closest to the current pixel.
@@ -175,20 +176,18 @@ trait MappingGenerator {
                                 Rgba::from([0, 0, 0, 0])
                             };
 
-                            new_image.put_pixel(x, y, pixel);
+                            new_texture.put_pixel(x, y, pixel);
                         }
                     }
 
-                    TextureData {
-                        file: FileData::Texture {
-                            encoded_png,
-                            image: new_image,
-                        },
-                        path,
-                    }
+                    let file = FileData::Texture(new_texture);
+
+                    TextureData { file, path }
                 }
 
                 FileData::McMeta(_) => TextureData { file, path },
+
+                _ => unreachable!("there should be no encoded pngs at this point"),
             })
             .collect()
     }

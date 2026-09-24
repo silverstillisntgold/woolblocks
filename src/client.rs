@@ -3,11 +3,7 @@ use crate::{
     Version, WoolError, manifest::get_client_jar_bytes,
 };
 use camino::Utf8PathBuf;
-use image::{
-    ImageFormat,
-    codecs::png::{CompressionType, FilterType, PngEncoder},
-    load_from_memory_with_format,
-};
+use image::{ImageFormat, load_from_memory_with_format};
 use serde::Deserialize;
 use std::io::{Cursor, Read};
 use zip::ZipArchive;
@@ -55,7 +51,7 @@ impl<'a> ClientFetcher<'a> {
 
         // Provide a generous upper bound to avoid resizing during the loop.
         let mut textures = Vec::with_capacity(zip_reader.len());
-        let mut pack_version = 0;
+        let mut pack_version = None;
 
         // YO DUMBASS WHY DO IT THIS WAY?!
         //
@@ -98,18 +94,9 @@ impl<'a> ClientFetcher<'a> {
                 match path.extension() {
                     // Actual textures.
                     Some(PNG_EXT) => {
-                        let image =
+                        let texture =
                             load_from_memory_with_format(&buf, ImageFormat::Png)?.into_rgba8();
-
-                        let mut buf = Vec::with_capacity(image.len());
-                        image.write_with_encoder(PngEncoder::new_with_quality(
-                            &mut buf,
-                            CompressionType::Best,
-                            FilterType::Adaptive,
-                        ))?;
-                        let encoded_png = buf.into_boxed_slice();
-
-                        let file = FileData::Texture { encoded_png, image };
+                        let file = FileData::Texture(texture);
 
                         textures.push(TextureData { file, path });
                     }
@@ -124,8 +111,8 @@ impl<'a> ClientFetcher<'a> {
 
                     // Use `version.json` to acquire the major resource version.
                     Some(JSON_EXT) if path.as_str().ends_with(VERSION_JSON) => {
-                        assert_eq!(
-                            pack_version, 0,
+                        assert!(
+                            pack_version.is_none(),
                             "this branch should only be reachable a single time: before the resource pack version has been read"
                         );
 
@@ -139,9 +126,11 @@ impl<'a> ClientFetcher<'a> {
                             resource_major: u64,
                         }
 
-                        pack_version = serde_json::from_slice::<VersionJson>(&buf)?
-                            .pack_version
-                            .resource_major;
+                        pack_version = Some(
+                            serde_json::from_slice::<VersionJson>(&buf)?
+                                .pack_version
+                                .resource_major,
+                        );
                     }
 
                     _ => {
@@ -151,6 +140,9 @@ impl<'a> ClientFetcher<'a> {
             }
         }
 
-        Ok((textures.into_boxed_slice(), pack_version))
+        Ok((
+            textures.into_boxed_slice(),
+            pack_version.expect("a major resource pack version should have been found"),
+        ))
     }
 }

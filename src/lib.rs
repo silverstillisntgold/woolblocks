@@ -4,7 +4,10 @@ pub use client::ClientFetcher;
 pub use generators::{AllTextures, TextureGenerator};
 
 use camino::Utf8PathBuf;
-use image::RgbaImage;
+use image::{
+    RgbaImage,
+    codecs::png::{CompressionType, FilterType, PngEncoder},
+};
 
 mod client;
 mod generators;
@@ -43,25 +46,37 @@ pub struct TextureData {
 }
 
 pub enum FileData {
+    /// The texture as it's encoded PNG representation.
+    EncodedPng(Box<[u8]>),
+
     /// Texture metadata.
     McMeta(Box<[u8]>),
 
     /// Actual texture.
-    Texture {
-        encoded_png: Box<[u8]>,
-        image: RgbaImage,
-    },
+    Texture(RgbaImage),
 }
 
 impl FileData {
     fn data(&self) -> &[u8] {
         match self {
-            Self::Texture {
-                encoded_png,
-                image: _,
-            } => encoded_png,
+            Self::EncodedPng(data) => data,
             Self::McMeta(data) => data,
+            _ => unreachable!("all textures should have been encoded by this point"),
         }
+    }
+
+    fn encode(&mut self) -> Result<(), image::ImageError> {
+        if let Self::Texture(texture) = self {
+            let mut buf = Vec::with_capacity(texture.len());
+            texture.write_with_encoder(PngEncoder::new_with_quality(
+                &mut buf,
+                CompressionType::Best,
+                FilterType::Adaptive,
+            ))?;
+            let encoded_png = buf.into_boxed_slice();
+            *self = Self::EncodedPng(encoded_png);
+        }
+        Ok(())
     }
 }
 
@@ -99,9 +114,6 @@ pub enum WoolError {
 pub enum MismatchError {
     #[error("client JAR SHA-1 does not match manifest")]
     ClientJarSha1,
-
-    #[error("`keys` and `values` should always have the same length")]
-    KdMapLength,
 
     #[error("version manifest SHA-1 does not match version index")]
     VersionManifestSha1,
