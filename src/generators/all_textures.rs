@@ -12,9 +12,7 @@ const LOCAL_EXCLUSIONS: &[&str] = &[
     "lamp",
     "beehive",
     "glazed",
-    "cartography_table_side1",
-    "cartography_table_side2",
-    "cartography_table_top",
+    "cartography_table",
     "door",
     "comparator",
     "pumpkin",
@@ -36,8 +34,8 @@ const LOCAL_EXCLUSIONS: &[&str] = &[
     "repeater",
     "test",
     "observer",
-    "target_side",
-    "target_top",
+    "target",
+    "furnace",
 ];
 
 pub struct AllTextures;
@@ -66,8 +64,8 @@ impl MappingGenerator for AllTextures {
                 // path.as_str().contains(INCLUSIONS[0])
                 //     && LOCAL_EXCLUSIONS.iter().all(|t| !path.as_str().contains(t))
                 LOCAL_EXCLUSIONS.iter().all(|exclusion| {
-                    path.components()
-                        .any(|component| component.as_str().ne(*exclusion))
+                    path.file_name()
+                        .is_some_and(|file_name| !file_name.contains(exclusion))
                 })
             })
             .filter_map(|(texture, _)| calculate_average(texture).map(|avg| (avg, texture.clone())))

@@ -25,8 +25,8 @@ const INCLUSIONS: &[&str] = &[
     "mob_effect", // Status effect textures
     "trims",      // Armor trim textures
     // Files: These fuckers live at root so we have to specify them
-    "pack.png",     // Texture pack icon
-    "version.json", // Texture pack version
+    "pack.png",   // Texture pack icon
+    VERSION_JSON, // Texture pack version
 ];
 
 const MANIFEST_URL: &str = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
@@ -61,7 +61,7 @@ impl FileData {
         match self {
             Self::EncodedPng(data) => data,
             Self::McMeta(data) => data,
-            _ => unreachable!("all textures should have been encoded by this point"),
+            _ => unreachable!("all textures should have been encoded"),
         }
     }
 

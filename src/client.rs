@@ -21,13 +21,15 @@ pub struct ClientFetcher<'a> {
     version: Version<'a>,
 }
 
-impl<'a> Default for ClientFetcher<'a> {
-    fn default() -> Self {
+impl<'a> ClientFetcher<'a> {
+    pub fn release() -> Self {
         Self::with_version(Version::Release)
     }
-}
 
-impl<'a> ClientFetcher<'a> {
+    pub fn snapshot() -> Self {
+        Self::with_version(Version::Snapshot)
+    }
+
     /// Provides reasonable exclusions and inclusions paired with the provided `version`.
     /// If you want the latest stable release then use [`Self::default`].
     pub fn with_version(version: Version<'a>) -> Self {
@@ -142,7 +144,7 @@ impl<'a> ClientFetcher<'a> {
 
         Ok((
             textures.into_boxed_slice(),
-            pack_version.expect("a major resource pack version should have been found"),
+            pack_version.expect("major resource pack version should have been found"),
         ))
     }
 }

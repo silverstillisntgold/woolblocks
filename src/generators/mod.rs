@@ -23,7 +23,7 @@ pub trait TextureGenerator {
 
 impl<T> TextureGenerator for T
 where
-    T: InternalGenerator + Sync,
+    T: InternalGenerator,
 {
     fn generate(self, client_fetcher: ClientFetcher, write_dir: bool) -> Result<(), WoolError> {
         if fs::exists(OUTPUT_DIR)? {
@@ -32,6 +32,10 @@ where
         fs::create_dir(OUTPUT_DIR)?;
 
         let (old_textures, pack_version) = client_fetcher.fetch()?;
+        let mut new_textures = self.modify_textures(old_textures);
+        new_textures
+            .par_iter_mut()
+            .try_for_each(|texture| texture.file.encode())?;
 
         // This is kinda aids.
         let pack_mcmeta = format!(
@@ -40,37 +44,15 @@ where
   \"pack\": {{
     \"description\": \"THE GREATEST TEXTURE PACK OF ALL TIME!!\",
     \"min_format\": {},
-    \"max_format\": {},
+    \"max_format\": {}
   }}
 }}\n",
             pack_version, pack_version
         )
         .into_bytes();
 
-        let mut new_textures = self.modify_textures(old_textures);
-        new_textures
-            .par_iter_mut()
-            .try_for_each(|texture| texture.file.encode())?;
-
         let mut path = Utf8PathBuf::from(OUTPUT_DIR);
         path.push(self.generator_name());
-
-        // let (zip_result, write_result) = rayon::join(
-        //     || {
-        //         let mut zip_path = path.clone();
-        //         zip_path.add_extension(ZIP_EXT);
-        //         self.zip(&zip_path, &new_textures, &pack_mcmeta)
-        //     },
-        //     || {
-        //         if write_dir {
-        //             self.write(&path, &new_textures, &pack_mcmeta)
-        //         } else {
-        //             Ok(())
-        //         }
-        //     },
-        // );
-        // zip_result?;
-        // write_result?;
 
         if write_dir {
             fs::create_dir(&path)?;
@@ -187,7 +169,7 @@ trait MappingGenerator {
 
                 FileData::McMeta(_) => TextureData { file, path },
 
-                _ => unreachable!("there should be no encoded pngs at this point"),
+                _ => unreachable!("no textures should have been encoded"),
             })
             .collect()
     }
