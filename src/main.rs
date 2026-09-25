@@ -2,7 +2,8 @@ use woolblocks::*;
 
 fn main() -> Result<(), WoolError> {
     println!("Starting program");
-    AllTextures.generate(ClientFetcher::release(), true)?;
+    //SingleTexture::new("white_wool.png").generate(ClientFetcher::release(), true)?;
+    AllTextures.generate(ClientFetcher::release(), false)?;
     println!("Program complete");
     Ok(())
 }

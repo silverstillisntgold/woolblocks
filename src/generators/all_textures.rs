@@ -64,8 +64,6 @@ impl MappingGenerator for AllTextures {
             })
             .filter(|(texture, _)| texture.width() == SIZE && texture.height() == SIZE)
             .filter(|(_, path)| {
-                // path.as_str().contains(INCLUSIONS[0])
-                //     && LOCAL_EXCLUSIONS.iter().all(|t| !path.as_str().contains(t))
                 LOCAL_EXCLUSIONS.iter().all(|exclusion| {
                     path.file_name()
                         .is_some_and(|file_name| !file_name.contains(exclusion))
