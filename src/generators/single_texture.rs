@@ -1,6 +1,8 @@
-use super::{InternalGenerator, MappingGenerator, SIZE};
-use crate::PNG_EXT;
-use crate::types::{FileData, KdMap, TextureData};
+use crate::{
+    FileData, PNG_EXT, SIZE, TextureData,
+    generators::{InternalGenerator, MappingGenerator},
+    kdmap::KdMap,
+};
 use image::{Rgba, RgbaImage};
 use rayon::prelude::*;
 
@@ -23,11 +25,13 @@ impl<'a> SingleTexture<'a> {
 }
 
 impl<'a> InternalGenerator for SingleTexture<'a> {
-    const GENERATOR_NAME: &'static str = "woolblocks";
+    fn generator_name(&self) -> &'static str {
+        "woolblocks"
+    }
 
-    fn modify_textures(&self, textures: Vec<TextureData>) -> Vec<TextureData> {
+    fn modify_textures(&self, textures: Box<[TextureData]>) -> Box<[TextureData]> {
         let map = self.create_rgb_map(&textures);
-        self.map(textures, map)
+        self.map(map, textures)
     }
 }
 
@@ -41,15 +45,17 @@ impl<'a> MappingGenerator for SingleTexture<'a> {
                 tmp
             }
         };
+
         let old_block = match &textures
             .iter()
             .find(|t| t.path.as_str().ends_with(&lookup))
-            .unwrap()
+            .expect("bro?")
             .file
         {
-            FileData::Texture(t) => t,
-            FileData::McMeta(_) => unreachable!(),
+            FileData::Texture(texture) => texture,
+            _ => unreachable!("nahhhhhhhh"),
         };
+
         let width = old_block.width();
         let height = old_block.height();
         assert!(
@@ -61,6 +67,7 @@ impl<'a> MappingGenerator for SingleTexture<'a> {
             width,
             height
         );
+
         rgb_vec(self.resolution)
             .into_par_iter()
             .map(|(r, g, b)| {

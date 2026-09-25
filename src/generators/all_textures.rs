@@ -1,5 +1,8 @@
-use super::{InternalGenerator, MappingGenerator, SIZE};
-use crate::{FileData, TextureData, kdmap::KdMap};
+use crate::{
+    FileData, SIZE, TextureData,
+    generators::{InternalGenerator, MappingGenerator},
+    kdmap::KdMap,
+};
 use image::RgbaImage;
 use rayon::prelude::*;
 

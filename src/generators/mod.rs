@@ -1,6 +1,6 @@
 pub use all_textures::AllTextures;
-// pub use single_texture::SingleTexture;
-// pub use xbrz::Xbrz;
+pub use single_texture::SingleTexture;
+pub use xbrz::Xbrz;
 
 use crate::{
     FileData, OUTPUT_DIR, PACK_MCMETA, SIZE, TextureData, WoolError, ZIP_EXT,
@@ -13,8 +13,8 @@ use std::{fs, io::Write};
 use zip::{CompressionMethod, ZipWriter, write::SimpleFileOptions};
 
 mod all_textures;
-// mod single_texture;
-// mod xbrz;
+mod single_texture;
+mod xbrz;
 
 /// Massa trait for generating textures.
 pub trait TextureGenerator {
