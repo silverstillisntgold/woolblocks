@@ -1,5 +1,4 @@
 pub use all_textures::AllTextures;
-pub use single_texture::SingleTexture;
 pub use xbrz::Xbrz;
 
 use crate::{
@@ -13,7 +12,6 @@ use std::{fs, io::Write};
 use zip::{CompressionMethod, ZipWriter, write::SimpleFileOptions};
 
 mod all_textures;
-mod single_texture;
 mod xbrz;
 
 /// Massa trait for generating textures.
