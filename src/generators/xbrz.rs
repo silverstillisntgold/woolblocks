@@ -32,9 +32,9 @@ impl InternalGenerator for Xbrz {
 
                         // When the texture is an item or effect, remove all pixels
                         // which aren't fully opaque.
-                        // The xBrz upscaling algorithm occasionally leaves
-                        // pixels semi-transparent when upscaling textures whose pixel-space
-                        // isn't fully occupied. This looks weird on items and effects.
+                        // The xBRZ upscaling algorithm occasionally leaves pixels semi-transparent
+                        // when upscaling textures whose pixel-space isn't fully occupied.
+                        // This looks particularly weird on items and effects.
                         let fix_fucked_pixels = path.components().any(|component| {
                             let s = component.as_str();
                             s.eq(INCLUSIONS[2]) || s.eq(INCLUSIONS[3])
