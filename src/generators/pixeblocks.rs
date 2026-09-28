@@ -41,9 +41,9 @@ const LOCAL_EXCLUSIONS: &[&str] = &[
     "furnace",
 ];
 
-pub struct AllTextures;
+pub struct PixelBlocks;
 
-impl InternalGenerator for AllTextures {
+impl InternalGenerator for PixelBlocks {
     fn generator_name(&self) -> &'static str {
         "pixelblocks"
     }
@@ -54,7 +54,7 @@ impl InternalGenerator for AllTextures {
     }
 }
 
-impl MappingGenerator for AllTextures {
+impl MappingGenerator for PixelBlocks {
     fn create_rgb_map(&self, textures: &[TextureData]) -> KdMap {
         textures
             .into_par_iter()

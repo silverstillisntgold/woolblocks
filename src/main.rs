@@ -2,7 +2,7 @@ use woolblocks::*;
 
 fn main() {
     println!("Starting program");
-    AllTextures
+    PixelBlocks
         .generate(ClientFetcher::release(), false)
         .unwrap();
     println!("Program complete");

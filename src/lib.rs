@@ -1,7 +1,7 @@
 #![forbid(unsafe_code)]
 
 pub use client::ClientFetcher;
-pub use generators::{AllTextures, TextureGenerator, Xbrz};
+pub use generators::{PixelBlocks, TextureGenerator, Xbrz};
 
 use camino::Utf8PathBuf;
 use image::{
