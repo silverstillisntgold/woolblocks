@@ -58,17 +58,21 @@ impl MappingGenerator for PixelBlocks {
     fn create_rgb_map(&self, textures: &[TextureData]) -> KdMap {
         textures
             .into_par_iter()
+            // Filter out non-textures.
             .filter_map(|texture_data| match &texture_data.file {
                 FileData::Texture(texture) => Some((texture, &texture_data.path)),
                 _ => None,
             })
+            // Filter out explicitly excluded textures.
             .filter(|(_, path)| {
                 LOCAL_EXCLUSIONS.iter().all(|exclusion| {
                     path.file_name()
                         .is_some_and(|file_name| !file_name.contains(exclusion))
                 })
             })
+            // Only use actual blocks.
             .filter(|(texture, _)| texture.width() == SIZE && texture.height() == SIZE)
+            // The average of each texture + it's texture.
             .filter_map(|(texture, _)| calculate_average(texture).map(|avg| (avg, texture.clone())))
             .into()
     }
@@ -84,9 +88,8 @@ fn calculate_average(texture: &RgbaImage) -> Option<[f64; 3]> {
     let mut b_sum = 0;
 
     for pixel in texture.pixels() {
-        // Immediately terminate on transparent pixel.
-        if pixel[3] == 0 {
-            core::hint::cold_path();
+        // Immediately terminate on non-opaque pixel.
+        if pixel[3] != u8::MAX {
             return None;
         }
 
@@ -95,7 +98,9 @@ fn calculate_average(texture: &RgbaImage) -> Option<[f64; 3]> {
         b_sum += pixel[2] as u64;
     }
 
-    let pixel_count = texture.width() as f64 * texture.height() as f64;
+    // One integer mul and one float conversion instead
+    // of two float conversions and a float mul.
+    let pixel_count = (texture.width() as u64 * texture.height() as u64) as f64;
 
     Some([
         r_sum as f64 / pixel_count,
