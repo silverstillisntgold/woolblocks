@@ -36,7 +36,7 @@ where
             "\
 {{
   \"pack\": {{
-    \"description\": \"{} is goated\",
+    \"description\": \"\\u00A7k{}.zip\",
     \"min_format\": {},
     \"max_format\": {}
   }}
