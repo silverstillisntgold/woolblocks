@@ -108,7 +108,7 @@ trait InternalGenerator {
         zip.write_all(pack_mcmeta)?;
 
         for texture_data in textures {
-            zip.start_file(&texture_data.path, options)?;
+            zip.start_file_from_path(texture_data.path.as_std_path(), options)?;
 
             let buf = texture_data.file.data();
 
