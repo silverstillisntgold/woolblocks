@@ -1,4 +1,4 @@
-pub use pixeblocks::PixelBlocks;
+pub use pixelblocks::PixelBlocks;
 pub use xbrz::Xbrz;
 
 use crate::{
@@ -11,7 +11,7 @@ use rayon::prelude::*;
 use std::{fs, io::Write};
 use zip::{CompressionMethod, ZipWriter, write::SimpleFileOptions};
 
-mod pixeblocks;
+mod pixelblocks;
 mod xbrz;
 
 /// Massa trait for generating textures.

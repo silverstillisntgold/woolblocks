@@ -62,13 +62,13 @@ impl MappingGenerator for PixelBlocks {
                 FileData::Texture(texture) => Some((texture, &texture_data.path)),
                 _ => None,
             })
-            .filter(|(texture, _)| texture.width() == SIZE && texture.height() == SIZE)
             .filter(|(_, path)| {
                 LOCAL_EXCLUSIONS.iter().all(|exclusion| {
                     path.file_name()
                         .is_some_and(|file_name| !file_name.contains(exclusion))
                 })
             })
+            .filter(|(texture, _)| texture.width() == SIZE && texture.height() == SIZE)
             .filter_map(|(texture, _)| calculate_average(texture).map(|avg| (avg, texture.clone())))
             .into()
     }
