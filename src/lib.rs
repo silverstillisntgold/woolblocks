@@ -63,7 +63,7 @@ impl FileData {
     fn data(&self) -> &[u8] {
         match self {
             Self::EncodedPng(data) | Self::McMeta(data) => data,
-            Self::Texture(_) => unreachable!("texture should already have been encoded"),
+            Self::Texture(_) => unreachable!("cannot get data of texture"),
         }
     }
 
@@ -72,7 +72,7 @@ impl FileData {
     /// Panics if the variant is already [`Self::EncodedPng`].
     fn encode_textures(&mut self) -> Result<(), image::ImageError> {
         match self {
-            Self::EncodedPng(_) => unreachable!("texture should not have been encoded"),
+            Self::EncodedPng(_) => unreachable!("encoded texture cannot be encoded"),
             Self::McMeta(_) => (),
             Self::Texture(texture) => {
                 let mut buf = Vec::with_capacity(texture.len());
