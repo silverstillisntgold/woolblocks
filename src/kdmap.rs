@@ -21,10 +21,12 @@ where
     T: ParallelIterator<Item = ([f64; DIMENSIONS], RgbaImage)>,
 {
     fn from(value: T) -> Self {
+        // The "average" RGB value of the image is represented by `keys_source`,
+        // and the image itself is represented by `values`.
         let (keys_source, values) = value.collect::<(Box<_>, Box<_>)>();
 
         let keys = KdeezNuts::new_from_slice_parallel(&keys_source)
-            .expect("`KdMap` shouldn't fail initialization with our configuration");
+            .expect("initialization of `KdMap` shouldn't fail with our configuration");
         assert_eq!(
             keys.size(),
             values.len(),
@@ -36,6 +38,9 @@ where
 }
 
 impl KdMap {
+    /// Find the RGB value which is "most similar" to `query`.
+    ///
+    /// Currently, similarity is determined via the Euclidean difference between RGB values.
     pub fn find_most_similar(&self, query: &[f64; DIMENSIONS]) -> &RgbaImage {
         let index = self
             .keys

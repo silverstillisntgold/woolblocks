@@ -8,7 +8,7 @@ use serde::Deserialize;
 use std::io::{Cursor, Read};
 use zip::ZipArchive;
 
-/// Fetches the raw bytes of a client (obviously).
+/// Utility for fetching the raw bytes of a client jar.
 #[derive(bon::Builder)]
 pub struct ClientFetcher<'a> {
     /// File path patterns that should be excluded when building the texture pack list.
@@ -22,16 +22,19 @@ pub struct ClientFetcher<'a> {
 }
 
 impl<'a> ClientFetcher<'a> {
+    /// The latest stable Minecraft version.
     pub fn release() -> Self {
         Self::with_version(Version::Release)
     }
 
+    /// The latest snapshot Minecraft version.
     pub fn snapshot() -> Self {
         Self::with_version(Version::Snapshot)
     }
 
-    /// Provides reasonable exclusions and inclusions paired with the provided `version`.
-    /// If you want the latest stable release then use [`Self::default`].
+    /// Provides reasonable default exclusions and inclusions paired with the provided `version`.
+    ///
+    /// Use [`Self::release`] or [`Self::snapshot`] for the latest Minecraft versions.
     pub fn with_version(version: Version<'a>) -> Self {
         // Builder syntax make me nut low-k.
         Self::builder()
@@ -51,7 +54,7 @@ impl<'a> ClientFetcher<'a> {
         let reader = Cursor::new(client_jar_bytes);
         let mut zip_reader = ZipArchive::new(reader)?;
 
-        // Provide a generous upper bound to avoid resizing during the loop.
+        // Provide a generous upper bound to avoid reallocating during the loop.
         let mut textures = Vec::with_capacity(zip_reader.len());
         let mut pack_version = None;
 
@@ -65,6 +68,9 @@ impl<'a> ClientFetcher<'a> {
         // The slowest part is almost certainly the buffer allocation to store each entry,
         // and since this serial approach filters before allocating buffers there's far less memory
         // allocations. The chuds were right: computation is cheap, memory is expensive.
+        //
+        // Also notice that we don't do any PNG encoding here. We only capture textures,
+        // mcmeta, and the `version.json` major pack version.
         for file_number in 0..zip_reader.len() {
             let mut file = zip_reader.by_index(file_number)?;
 
@@ -103,7 +109,7 @@ impl<'a> ClientFetcher<'a> {
                         textures.push(TextureData { file, path });
                     }
 
-                    // McMeta files which are required for certain textures (fire, water, etc.)
+                    // McMeta files are required for certain textures (fire, water, etc.)
                     // to not be completely fucked up.
                     Some(MCMETA_EXT) => {
                         let file = FileData::McMeta(buf.into_boxed_slice());
@@ -128,15 +134,15 @@ impl<'a> ClientFetcher<'a> {
                             resource_major: u64,
                         }
 
-                        pack_version = Some(
-                            serde_json::from_slice::<VersionJson>(&buf)?
-                                .pack_version
-                                .resource_major,
-                        );
+                        let parsed_major_version = serde_json::from_slice::<VersionJson>(&buf)?
+                            .pack_version
+                            .resource_major;
+
+                        pack_version = Some(parsed_major_version);
                     }
 
                     _ => {
-                        // Ignore all the other shit.
+                        // Ignore any other shit.
                     }
                 }
             }
@@ -144,7 +150,7 @@ impl<'a> ClientFetcher<'a> {
 
         Ok((
             textures.into_boxed_slice(),
-            pack_version.expect("major resource pack version should have been found"),
+            pack_version.expect("all Minecraft client jar's should contain `version.json`"),
         ))
     }
 }

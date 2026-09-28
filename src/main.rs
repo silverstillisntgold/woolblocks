@@ -1,8 +1,9 @@
 use woolblocks::*;
 
-fn main() -> Result<(), WoolError> {
+fn main() {
     println!("Starting program");
-    AllTextures.generate(ClientFetcher::release(), false)?;
+    AllTextures
+        .generate(ClientFetcher::release(), false)
+        .unwrap();
     println!("Program complete");
-    Ok(())
 }

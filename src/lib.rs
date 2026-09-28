@@ -57,25 +57,34 @@ pub enum FileData {
 }
 
 impl FileData {
+    /// Returns the raw data of either the encoded PNG or McMeta.
+    ///
+    /// Panics if the variant is [`Self::Texture`].
     fn data(&self) -> &[u8] {
         match self {
-            Self::EncodedPng(data) => data,
-            Self::McMeta(data) => data,
-            _ => unreachable!("all textures should have been encoded"),
+            Self::EncodedPng(data) | Self::McMeta(data) => data,
+            Self::Texture(_) => unreachable!("texture should already have been encoded"),
         }
     }
 
-    fn encode(&mut self) -> Result<(), image::ImageError> {
-        if let Self::Texture(texture) = self {
-            let mut buf = Vec::with_capacity(texture.len());
-            texture.write_with_encoder(PngEncoder::new_with_quality(
-                &mut buf,
-                CompressionType::Best,
-                FilterType::Adaptive,
-            ))?;
-            let encoded_png = buf.into_boxed_slice();
-            *self = Self::EncodedPng(encoded_png);
-        }
+    /// Encodes [`Self::Texture`] into [`Self::EncodedPng`].
+    ///
+    /// Panics if the variant is already [`Self::EncodedPng`].
+    fn encode_textures(&mut self) -> Result<(), image::ImageError> {
+        match self {
+            Self::EncodedPng(_) => unreachable!("texture should not have been encoded"),
+            Self::McMeta(_) => (),
+            Self::Texture(texture) => {
+                let mut buf = Vec::with_capacity(texture.len());
+                texture.write_with_encoder(PngEncoder::new_with_quality(
+                    &mut buf,
+                    CompressionType::Best,
+                    FilterType::Adaptive,
+                ))?;
+                let encoded_png = buf.into_boxed_slice();
+                *self = Self::EncodedPng(encoded_png);
+            }
+        };
         Ok(())
     }
 }

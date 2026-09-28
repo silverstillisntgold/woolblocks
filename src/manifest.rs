@@ -72,11 +72,13 @@ fn get_version(version: Version) -> Result<VersionData, WoolError> {
 fn get_client_data(version_data: VersionData) -> Result<ClientData, WoolError> {
     let package_manifest_bytes = get_url_body(&version_data.url)?;
 
+    // Sha1 verification of version package manifest.
     let package_manifest_sha1 = Sha1::from(&package_manifest_bytes).digest();
     if version_data.sha1 != package_manifest_sha1 {
         return Err(MismatchError::VersionManifestSha1.into());
     }
 
+    // Version ID verification.
     let package_manifest = serde_json::from_slice::<PackageManifest>(&package_manifest_bytes)?;
     if version_data.id != package_manifest.id {
         return Err(MismatchError::VersionId.into());
@@ -88,6 +90,7 @@ fn get_client_data(version_data: VersionData) -> Result<ClientData, WoolError> {
 fn get_raw_client_bytes(client_data: ClientData) -> Result<Box<[u8]>, WoolError> {
     let client_bytes = get_url_body(&client_data.url)?;
 
+    // Sha1 verification of client jar bytes.
     let client_data_sha1 = Sha1::from(&client_bytes).digest();
     if client_data.sha1 != client_data_sha1 {
         return Err(MismatchError::ClientJarSha1.into());
@@ -96,13 +99,16 @@ fn get_raw_client_bytes(client_data: ClientData) -> Result<Box<[u8]>, WoolError>
     Ok(client_bytes)
 }
 
-/// The [`ureq`] crate doesn't do any internal pre-allocation when fetching HTTP bodies
-/// (idk why not maybe they're retarded?), so we need to do it ourselves.
+/// Returns the body of the provided `url`. The [`ureq`] crate doesn't do any
+/// internal pre-allocation when fetching HTTP bodies, so we do it ourselves to avoid
+/// reallocations during reading of body contents.
 #[inline(never)]
 fn get_url_body(url: &str) -> Result<Box<[u8]>, WoolError> {
     // Effectively unlimited for the expected JAR size (<50MB).
     const LIMIT: u64 = 1 << 29;
 
+    // Avoid reading into a buffer straight from the call site so we
+    // can try to fetch the body size to correctly preallocate.
     let response = ureq::get(url).call()?;
 
     // The buffer will attempt to size itself according to `Content-Length`, falling back to
