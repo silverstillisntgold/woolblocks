@@ -70,7 +70,7 @@ impl MappingGenerator for PixelBlocks {
                         .is_some_and(|file_name| !file_name.contains(exclusion))
                 })
             })
-            // Only use actual blocks.
+            // Filter out textures that aren't sized correctly.
             .filter(|(texture, _)| texture.width() == SIZE && texture.height() == SIZE)
             // The average of each texture + it's texture.
             .filter_map(|(texture, _)| calculate_average(texture).map(|avg| (avg, texture.clone())))
