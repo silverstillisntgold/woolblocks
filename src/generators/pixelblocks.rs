@@ -6,7 +6,7 @@ use crate::{
 use image::RgbaImage;
 use rayon::prelude::*;
 
-/// Textures which are shitty sources.
+/// Textures which are shitty sources for pixels.
 const LOCAL_EXCLUSIONS: &[&str] = &[
     "book",
     "bee_nest_front",
