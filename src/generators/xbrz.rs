@@ -102,6 +102,7 @@ fn wrap_pad(texture: &RgbaImage) -> RgbaImage {
     let height = texture.height();
 
     // Pretty sure `rem_euclid` is the correct option here.
+    // TODO: Make this less messy.
     RgbaImage::from_fn(width + WRAP_BORDER * 2, height + WRAP_BORDER * 2, |x, y| {
         let source_x = (i64::from(x) - i64::from(WRAP_BORDER)).rem_euclid(i64::from(width)) as u32;
         let source_y = (i64::from(y) - i64::from(WRAP_BORDER)).rem_euclid(i64::from(height)) as u32;
