@@ -27,11 +27,7 @@ where
     fn generate(self, client_fetcher: ClientFetcher, write_dir: bool) -> Result<(), WoolError> {
         let (old_textures, pack_version) = client_fetcher.fetch()?;
 
-        let mut new_textures = self.modify_textures(old_textures);
-        // Encoding comes **after** modification.
-        new_textures
-            .par_iter_mut()
-            .try_for_each(|texture| texture.file.encode_textures())?;
+        let new_textures = self.modify_textures(old_textures);
 
         // This is kinda aids, but it works :).
         let pack_mcmeta = format!(
@@ -57,7 +53,7 @@ where
         let mut path = Utf8PathBuf::from(OUTPUT_DIR);
         path.push(self.generator_name());
 
-        self.zip(path, &new_textures, &pack_mcmeta, write_dir)?;
+        self.zip(path, new_textures, &pack_mcmeta, write_dir)?;
 
         Ok(())
     }
@@ -71,10 +67,17 @@ trait InternalGenerator {
     fn zip(
         &self,
         path: Utf8PathBuf,
-        textures: &[TextureData],
+        textures: Box<[TextureData]>,
         pack_mcmeta: &[u8],
         write_dir: bool,
     ) -> Result<(), WoolError> {
+        if write_dir {
+            fs::create_dir(&path)?;
+            let mut pack_mcmeta_path = path.clone();
+            pack_mcmeta_path.push(PACK_MCMETA);
+            fs::write(pack_mcmeta_path, pack_mcmeta)?;
+        }
+
         let mut path_zip = path.clone();
         path_zip.add_extension(ZIP_EXT);
 
@@ -87,14 +90,9 @@ trait InternalGenerator {
         zip.start_file(PACK_MCMETA, options)?;
         zip.write_all(pack_mcmeta)?;
 
-        if write_dir {
-            fs::create_dir(&path)?;
-            let mut pack_mcmeta_path = path.clone();
-            pack_mcmeta_path.push(PACK_MCMETA);
-            fs::write(pack_mcmeta_path, pack_mcmeta)?;
-        }
-
         for texture_data in textures {
+            let buf = texture_data.file.data()?;
+
             if write_dir {
                 let mut file_path = path.clone();
                 file_path.push(&texture_data.path);
@@ -102,16 +100,12 @@ trait InternalGenerator {
                     fs::create_dir_all(parent_path)?;
                 }
 
-                let buf = texture_data.file.data();
-
-                fs::write(file_path, buf)?;
+                fs::write(file_path, &buf)?;
             }
 
             zip.start_file_from_path(&texture_data.path, options)?;
 
-            let buf = texture_data.file.data();
-
-            zip.write_all(buf)?;
+            zip.write_all(&buf)?;
         }
 
         // Explicitly finish the zip to avoid silent errors when dropping.
@@ -167,8 +161,6 @@ trait MappingGenerator {
                     }
 
                     FileData::McMeta(_) => TextureData { file, path },
-
-                    _ => unreachable!("no textures should have been encoded"),
                 }
             })
             .collect()

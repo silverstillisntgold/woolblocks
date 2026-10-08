@@ -57,8 +57,6 @@ impl InternalGenerator for Xbrz {
                     }
 
                     FileData::McMeta(_) => TextureData { file, path },
-
-                    _ => unreachable!("no textures should have been encoded"),
                 }
             })
             .collect()

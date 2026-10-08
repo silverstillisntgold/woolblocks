@@ -46,9 +46,6 @@ pub struct TextureData {
 }
 
 pub enum FileData {
-    /// The texture as it's encoded PNG representation.
-    EncodedPng(Box<[u8]>),
-
     /// Texture metadata.
     McMeta(Box<[u8]>),
 
@@ -57,23 +54,9 @@ pub enum FileData {
 }
 
 impl FileData {
-    /// Returns the raw data of either the encoded PNG or McMeta.
-    ///
-    /// Panics if the variant is [`Self::Texture`].
-    fn data(&self) -> &[u8] {
+    /// Returns the data of either the encoded PNG or McMeta.
+    fn data(self) -> Result<Box<[u8]>, image::ImageError> {
         match self {
-            Self::EncodedPng(data) | Self::McMeta(data) => data,
-            Self::Texture(_) => unreachable!("cannot get data of texture"),
-        }
-    }
-
-    /// Encodes [`Self::Texture`] into [`Self::EncodedPng`].
-    ///
-    /// Panics if the variant is already [`Self::EncodedPng`].
-    fn encode_textures(&mut self) -> Result<(), image::ImageError> {
-        match self {
-            Self::EncodedPng(_) => unreachable!("encoded texture cannot be encoded"),
-            Self::McMeta(_) => (),
             Self::Texture(texture) => {
                 let mut buf = Vec::with_capacity(texture.len());
                 texture.write_with_encoder(PngEncoder::new_with_quality(
@@ -82,10 +65,11 @@ impl FileData {
                     FilterType::Adaptive,
                 ))?;
                 let encoded_png = buf.into_boxed_slice();
-                *self = Self::EncodedPng(encoded_png);
+                Ok(encoded_png)
             }
-        };
-        Ok(())
+
+            Self::McMeta(data) => Ok(data),
+        }
     }
 }
 
