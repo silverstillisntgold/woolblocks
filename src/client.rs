@@ -95,7 +95,6 @@ impl<'a> ClientFetcher<'a> {
                     continue;
                 }
 
-                // Why the fuck doesn't .size() return a usize?
                 let mut buf = Vec::with_capacity(file.size() as usize);
                 file.read_to_end(&mut buf)?;
 
@@ -121,7 +120,7 @@ impl<'a> ClientFetcher<'a> {
                     Some(JSON_EXT) if path.as_str().ends_with(VERSION_JSON) => {
                         assert!(
                             pack_version.is_none(),
-                            "this branch should only be reachable a single time: before the resource pack version has been read"
+                            "the resource pack version should not have been read yet"
                         );
 
                         #[derive(Deserialize)]
