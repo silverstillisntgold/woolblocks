@@ -5,7 +5,7 @@ use crate::{
     FileData, OUTPUT_DIR, PACK_MCMETA, SIZE, TextureData, WoolError, ZIP_EXT,
     client::ClientFetcher, kdmap::KdMap,
 };
-use camino::{Utf8Path, Utf8PathBuf};
+use camino::Utf8PathBuf;
 use image::{Pixel, Rgba, RgbaImage};
 use rayon::prelude::*;
 use std::{fs, io::Write};
@@ -16,6 +16,7 @@ mod xbrz;
 
 /// Massa trait for generating textures.
 pub trait TextureGenerator {
+    /// She fetch my client until I generate.
     fn generate(self, client_fetcher: ClientFetcher, write_dir: bool) -> Result<(), WoolError>;
 }
 
@@ -25,13 +26,14 @@ where
 {
     fn generate(self, client_fetcher: ClientFetcher, write_dir: bool) -> Result<(), WoolError> {
         let (old_textures, pack_version) = client_fetcher.fetch()?;
+
         let mut new_textures = self.modify_textures(old_textures);
-        // Encoding always comes **after** modification.
+        // Encoding comes **after** modification.
         new_textures
             .par_iter_mut()
             .try_for_each(|texture| texture.file.encode_textures())?;
 
-        // This is kinda aids.
+        // This is kinda aids, but it works :).
         let pack_mcmeta = format!(
             "\
 {{
@@ -47,21 +49,15 @@ where
         )
         .into_bytes();
 
-        let mut path = Utf8PathBuf::from(OUTPUT_DIR);
-        path.push(self.generator_name());
-
         if fs::exists(OUTPUT_DIR)? {
             fs::remove_dir_all(OUTPUT_DIR)?;
         }
         fs::create_dir(OUTPUT_DIR)?;
 
-        if write_dir {
-            fs::create_dir(&path)?;
-            self.write(&path, &new_textures, &pack_mcmeta)?;
-        }
+        let mut path = Utf8PathBuf::from(OUTPUT_DIR);
+        path.push(self.generator_name());
 
-        path.add_extension(ZIP_EXT);
-        self.zip(&path, &new_textures, &pack_mcmeta)?;
+        self.zip(path, &new_textures, &pack_mcmeta, write_dir)?;
 
         Ok(())
     }
@@ -72,38 +68,17 @@ trait InternalGenerator {
 
     fn modify_textures(&self, textures: Box<[TextureData]>) -> Box<[TextureData]>;
 
-    fn write(
-        &self,
-        path: &Utf8Path,
-        textures: &[TextureData],
-        pack_mcmeta: &[u8],
-    ) -> Result<(), WoolError> {
-        let mut pack_mcmeta_path = path.to_path_buf();
-        pack_mcmeta_path.push(PACK_MCMETA);
-        fs::write(pack_mcmeta_path, pack_mcmeta)?;
-
-        for texture_data in textures {
-            let mut file_path = path.to_path_buf();
-            file_path.push(&texture_data.path);
-            if let Some(parent_path) = file_path.parent() {
-                fs::create_dir_all(parent_path)?;
-            }
-
-            let buf = texture_data.file.data();
-
-            fs::write(file_path, buf)?;
-        }
-
-        Ok(())
-    }
-
     fn zip(
         &self,
-        path: &Utf8Path,
+        path: Utf8PathBuf,
         textures: &[TextureData],
         pack_mcmeta: &[u8],
+        write_dir: bool,
     ) -> Result<(), WoolError> {
-        let inner = fs::File::create(path)?;
+        let mut path_zip = path.clone();
+        path_zip.add_extension(ZIP_EXT);
+
+        let inner = fs::File::create(path_zip)?;
         let mut zip = ZipWriter::new(inner);
         // Not bothering with compression because all PNGs are already encoded using the
         // highest level. Compressing the final zip only gives back a few MB.
@@ -112,7 +87,26 @@ trait InternalGenerator {
         zip.start_file(PACK_MCMETA, options)?;
         zip.write_all(pack_mcmeta)?;
 
+        if write_dir {
+            fs::create_dir(&path)?;
+            let mut pack_mcmeta_path = path.clone();
+            pack_mcmeta_path.push(PACK_MCMETA);
+            fs::write(pack_mcmeta_path, pack_mcmeta)?;
+        }
+
         for texture_data in textures {
+            if write_dir {
+                let mut file_path = path.clone();
+                file_path.push(&texture_data.path);
+                if let Some(parent_path) = file_path.parent() {
+                    fs::create_dir_all(parent_path)?;
+                }
+
+                let buf = texture_data.file.data();
+
+                fs::write(file_path, buf)?;
+            }
+
             zip.start_file_from_path(&texture_data.path, options)?;
 
             let buf = texture_data.file.data();
