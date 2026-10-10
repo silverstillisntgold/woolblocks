@@ -22,4 +22,4 @@ ureq = {
   ]
 }
 xbrz-rs = { version = "0.1", features = ["large_lut"] }
-zip = { version = "8.6", default-features = false, features = ["deflate"] }
+zip = { version = "9.0", default-features = false, features = ["deflate"] }
